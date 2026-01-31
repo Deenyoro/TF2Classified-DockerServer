@@ -1,0 +1,300 @@
+# TF2 Classified Dedicated Server
+#
+# Usage:
+#   docker compose up -d                                       # default (Steam relay, IP hidden)
+#   docker compose --profile playit up -d                      # with playit.gg tunnel
+#   docker compose --profile fastdl up -d                      # with self-hosted FastDL
+#   docker compose --profile playit --profile fastdl up -d     # both
+#   docker compose --profile server2 up -d                     # run second server
+#
+# Steam Datagram Relay hides your IP by default. playit.gg is optional
+# if you want a stable address players can favorite.
+#
+# Multiple servers share the tf2-data volume (TF2 base, ~15GB) so it only
+# downloads once. Each server gets its own TF2 Classified volume and config.
+
+services:
+  tf2classified:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    container_name: tf2classified
+    restart: unless-stopped
+
+    # Host networking avoids Docker NAT overhead and is required for
+    # Steam networking relay to function correctly.
+    network_mode: host
+
+    env_file:
+      - .env
+
+    volumes:
+      # Game files persist in named volumes (~20GB, survives rebuilds)
+      - tf2-data:/data/tf
+      - classified-data:/data/classified
+
+      # Your custom content (bind-mounted, read-only)
+      - ./data/cfg:/data/cfg:ro
+      - ./data/addons:/data/addons:ro
+      - ./data/maps:/data/maps:ro
+
+      # Writable outputs
+      - ./data/logs:/data/logs
+      - ./data/demos:/data/demos
+
+    # Give srcds time to disconnect players and save state
+    stop_grace_period: 30s
+
+    stdin_open: true
+    tty: true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --------------------------------------------------------------------------
+  # FastDL web server (optional)
+  #
+  # Serves custom maps/content over HTTP so players don't suffer the slow
+  # in-game transfer.
+  #
+  # Setup:
+  #   1. Drop .bsp files in data/maps/
+  #   2. Run: make compress-maps
+  #   3. Set FASTDL_URL in .env (e.g. http://your-ip:8080/tf2classified)
+  #   4. docker compose --profile fastdl up -d
+  #
+  # Or use an external CDN (Cloudflare R2, S3, etc.) and just set FASTDL_URL.
+  # --------------------------------------------------------------------------
+  fastdl:
+    image: nginx:alpine
+    container_name: tf2c-fastdl
+    restart: unless-stopped
+    ports:
+      - "${FASTDL_PORT:-8080}:80"
+    volumes:
+      - ./data/fastdl:/usr/share/nginx/html:ro
+      - ./nginx/fastdl.conf:/etc/nginx/conf.d/default.conf:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /var/log/nginx
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles:
+      - fastdl
+
+  # --------------------------------------------------------------------------
+  # playit.gg tunnel (optional)
+  #
+  # Gives a stable public address (e.g. something.playit.gg:12345) that
+  # players can favorite, while still hiding your origin IP.
+  #
+  # Setup:
+  #   1. Create account + UDP tunnel at https://playit.gg
+  #   2. Set PLAYIT_SECRET_KEY in .env
+  #   3. Set STEAM_NETWORKING=false in .env
+  #   4. docker compose --profile playit up -d
+  # --------------------------------------------------------------------------
+  playit:
+    image: playitcloud/playit:latest
+    container_name: tf2c-playit
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - SECRET_KEY=${PLAYIT_SECRET_KEY:-}
+    profiles:
+      - playit
+
+  # --------------------------------------------------------------------------
+  # Additional server instance (optional)
+  #
+  # Shares game volumes with the primary server so you don't re-download
+  # ~20GB. Only needs its own configs, plugins, and port.
+  #
+  # Setup:
+  #   1. make add-server N=2        (creates dirs + .env.server2)
+  #   2. Edit .env.server2          (change name, port, RCON, etc.)
+  #   3. docker compose --profile server2 up -d
+  #
+  # To add more: duplicate this block, change "2" to "3", etc.
+  # The primary server must be running first (it owns the TF2 base volume).
+  # --------------------------------------------------------------------------
+  tf2classified-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    container_name: tf2classified-2
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env.server2
+    volumes:
+      - tf2-data:/data/tf
+      - classified-data:/data/classified
+      - ./servers/2/cfg:/data/cfg:ro
+      - ./servers/2/addons:/data/addons:ro
+      - ./servers/2/maps:/data/maps:ro
+      - ./servers/2/logs:/data/logs
+      - ./servers/2/demos:/data/demos
+    stop_grace_period: 30s
+    stdin_open: true
+    tty: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - server2
+
+  tf2classified-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    container_name: tf2classified-3
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env.server3
+    volumes:
+      - tf2-data:/data/tf
+      - classified-data:/data/classified
+      - ./servers/3/cfg:/data/cfg:ro
+      - ./servers/3/addons:/data/addons:ro
+      - ./servers/3/maps:/data/maps:ro
+      - ./servers/3/logs:/data/logs
+      - ./servers/3/demos:/data/demos
+    stop_grace_period: 30s
+    stdin_open: true
+    tty: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - server3
+
+  tf2classified-4:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    container_name: tf2classified-4
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env.server4
+    volumes:
+      - tf2-data:/data/tf
+      - classified-data:/data/classified
+      - ./servers/4/cfg:/data/cfg:ro
+      - ./servers/4/addons:/data/addons:ro
+      - ./servers/4/maps:/data/maps:ro
+      - ./servers/4/logs:/data/logs
+      - ./servers/4/demos:/data/demos
+    stop_grace_period: 30s
+    stdin_open: true
+    tty: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - server4
+
+  tf2classified-5:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    container_name: tf2classified-5
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env.server5
+    volumes:
+      - tf2-data:/data/tf
+      - classified-data:/data/classified
+      - ./servers/5/cfg:/data/cfg:ro
+      - ./servers/5/addons:/data/addons:ro
+      - ./servers/5/maps:/data/maps:ro
+      - ./servers/5/logs:/data/logs
+      - ./servers/5/demos:/data/demos
+    stop_grace_period: 30s
+    stdin_open: true
+    tty: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - server5
+
+  tf2classified-6:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    container_name: tf2classified-6
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env.server6
+    volumes:
+      - tf2-data:/data/tf
+      - classified-data:/data/classified
+      - ./servers/6/cfg:/data/cfg:ro
+      - ./servers/6/addons:/data/addons:ro
+      - ./servers/6/maps:/data/maps:ro
+      - ./servers/6/logs:/data/logs
+      - ./servers/6/demos:/data/demos
+    stop_grace_period: 30s
+    stdin_open: true
+    tty: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - server6
+
+volumes:
+  tf2-data:
+  classified-data:

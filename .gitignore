@@ -1,0 +1,40 @@
+# Secrets & credentials
+.env
+.env.*
+!.env.example
+!.env.server2.example
+.r2/
+
+# Private keys & certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.csr
+
+# Data directories (game files, configs, logs, demos)
+data/
+servers/
+
+# Docker
+*.log
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# OS files
+.DS_Store
+Thumbs.db
+._*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Backups
+*.bak
+*.backup
+*.orig
