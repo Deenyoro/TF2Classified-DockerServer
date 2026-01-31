@@ -351,12 +351,22 @@ shutdown_server() {
 }
 trap shutdown_server SIGTERM SIGINT
 
+# --- Port allocation ---
+# Each srcds instance binds 3 UDP ports: game, client, and SourceTV (HLTV).
+# By default, client ports start at 27005 and SourceTV at game_port+5,
+# which collide with other servers' game ports in multi-server setups.
+# We offset them into safe ranges to prevent conflicts.
+CLIENT_PORT=$((SERVER_PORT + 500))
+TV_PORT=$((SERVER_PORT + 1000))
+
 # --- Start srcds ---
 ./srcds_linux64 \
     -tf_path "${TF2_DIR}" \
     +map "${START_MAP}" \
     +maxplayers "${MAX_PLAYERS}" \
     -port "${SERVER_PORT}" \
+    -clientport "${CLIENT_PORT}" \
+    +tv_port "${TV_PORT}" \
     -tickrate "${TICKRATE}" \
     -console \
     -usercon \
