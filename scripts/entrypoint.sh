@@ -75,6 +75,10 @@ bool_to_cvar() {
 
 STEAM_NET_CVAR=$(bool_to_cvar "${STEAM_NETWORKING}")
 
+# Per-server config suffix — prevents servers sharing a volume from
+# overwriting each other's server.cfg (race condition on startup).
+CFG_SUFFIX="_${SERVER_PORT}"
+
 # ---------------------------------------------------------------------------
 # 1. Install / update game files via SteamCMD
 # ---------------------------------------------------------------------------
@@ -231,9 +235,12 @@ if [[ "${SERVER_CFG_MODE,,}" == "custom" ]]; then
         log_warn "No server.cfg found! Put one in data/cfg/server.cfg or set SERVER_CFG_MODE=auto"
     fi
 else
-    log_step "Writing server.cfg (SERVER_CFG_MODE=auto)..."
+    # Remove stale shared server.cfg so the engine doesn't auto-load it
+    rm -f "${GAME_DIR}/cfg/server.cfg"
 
-    cat > "${GAME_DIR}/cfg/server.cfg" << CFGEOF
+    log_step "Writing server${CFG_SUFFIX}.cfg (SERVER_CFG_MODE=auto)..."
+
+    cat > "${GAME_DIR}/cfg/server${CFG_SUFFIX}.cfg" << CFGEOF
 // TF2 Classified Server Configuration
 // Written from .env on container start. Gets overwritten every boot.
 // Put your overrides in data/cfg/server_custom.cfg or switch to
@@ -276,8 +283,8 @@ exec server_custom.cfg
 CFGEOF
 fi
 
-# default.cfg is loaded before server.cfg — steam networking must be set early
-cat > "${GAME_DIR}/cfg/default.cfg" << DEFEOF
+# default cfg is loaded early — steam networking must be set before connect
+cat > "${GAME_DIR}/cfg/default${CFG_SUFFIX}.cfg" << DEFEOF
 sv_use_steam_networking ${STEAM_NET_CVAR}
 DEFEOF
 
@@ -353,7 +360,8 @@ trap shutdown_server SIGTERM SIGINT
     -tickrate "${TICKRATE}" \
     -console \
     -usercon \
-    +exec server.cfg \
+    +servercfgfile server${CFG_SUFFIX}.cfg \
+    +exec default${CFG_SUFFIX}.cfg \
     ${EXTRA_ARGS} &
 SRCDS_PID=$!
 
