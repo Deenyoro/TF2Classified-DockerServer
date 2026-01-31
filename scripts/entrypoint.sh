@@ -198,7 +198,7 @@ VDFEOF
 
     if [[ -d "${GAME_DIR}/addons/sourcemod" ]] && \
        [[ ! -f "${GAME_DIR}/addons/sourcemod/extensions/smjansson.ext.so" ]]; then
-        install_tarball "${SMJANSSON_URL}" "SMJansson" "${GAME_DIR}/addons/sourcemod"
+        install_tarball "${SMJANSSON_URL}" "SMJansson" "${GAME_DIR}"
     fi
 fi
 
