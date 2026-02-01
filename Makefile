@@ -1,4 +1,4 @@
-.PHONY: help setup build start stop restart logs console update status start-playit start-fastdl compress-maps upload-maps add-server start-server stop-server logs-server clean
+.PHONY: help setup build start stop restart logs console update status start-fastdl compress-maps upload-maps add-server start-server stop-server logs-server clean
 
 help:
 	@echo "TF2 Classified Docker Server"
@@ -12,7 +12,6 @@ help:
 	@echo "  make console       — Attach to server console (Ctrl+P Ctrl+Q to detach)"
 	@echo "  make update        — Update game files inside running container"
 	@echo "  make status        — Show container status"
-	@echo "  make start-playit  — Start with playit.gg tunnel"
 	@echo "  make start-fastdl  — Start with self-hosted FastDL"
 	@echo "  make compress-maps — Compress maps in data/maps/ for FastDL"
 	@echo "  make upload-maps   — Compress + upload maps to Cloudflare R2"
@@ -53,9 +52,6 @@ update:
 
 status:
 	docker compose ps
-
-start-playit:
-	docker compose --profile playit up -d
 
 start-fastdl:
 	docker compose --profile fastdl up -d

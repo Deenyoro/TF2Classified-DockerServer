@@ -24,14 +24,11 @@ Or: `make setup && make start && make logs`
 
 With Steam Networking on (default), the server shows up in the TF2C browser. Players find it by name and join. The downside is they can't favorite it since the relay address is ephemeral.
 
-If you want a stable address players can bookmark, see the [playit.gg section](#playitgg) below.
-
-Without either of those, players connect by your public IP directly. You'd need to port-forward 27015/UDP and your IP is exposed.
+Without Steam Networking, players connect by your public IP directly. You'd need to port-forward 27015/UDP and your IP is exposed.
 
 | | IP Hidden | Favoritable | Port Forward |
 |-|-----------|-------------|-------------|
 | Steam Networking (default) | yes | no | no |
-| playit.gg | yes | yes | no |
 | Direct | no | yes | yes |
 
 ## Configuration
@@ -150,16 +147,6 @@ Once your server is running, you can ask the TF2C team for manual verification. 
 - `type_customrules` — custom gamemodes, civilian, bhop, etc.
 - `type_customweapons` — rebalance packs, throwback weapons
 
-## playit.gg
-
-Optional. Only needed if you want players to be able to favorite your server while still keeping your IP hidden.
-
-1. Make a UDP tunnel at [playit.gg](https://playit.gg) pointing to `127.0.0.1:27015`
-2. Set `STEAM_NETWORKING=false` and `PLAYIT_SECRET_KEY=your-key` in `.env`
-3. `docker compose --profile playit up -d`
-
-Players connect with the playit address.
-
 ## Troubleshooting
 
 **Server not in browser:** Steam Networking can take a couple minutes to register. Without it, check that 27015/UDP is forwarded.
@@ -178,4 +165,3 @@ docker compose exec tf2classified cat /data/classified/tf2classified/addons/meta
 - SourceMod: https://www.sourcemod.net
 - MetaMod:Source: https://www.metamodsource.net
 - SMJansson: https://github.com/srcdslab/sm-ext-SMJansson
-- playit.gg: https://playit.gg

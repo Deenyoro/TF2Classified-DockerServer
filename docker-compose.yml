@@ -2,13 +2,10 @@
 #
 # Usage:
 #   docker compose up -d                                       # single server (Steam relay, IP hidden)
-#   docker compose --profile playit up -d                      # with playit.gg tunnel
 #   docker compose --profile fastdl up -d                      # with self-hosted FastDL
-#   docker compose --profile playit --profile fastdl up -d     # both
 #   docker compose --profile server2 up -d                     # run additional server
 #
-# Steam Datagram Relay hides your IP by default. playit.gg is optional
-# if you want a stable address players can favorite.
+# Steam Datagram Relay hides your IP by default.
 #
 # Multiple servers share the tf2-data volume (TF2 base, ~15GB) so it only
 # downloads once. Each server gets its own TF2 Classified volume and config.
@@ -103,28 +100,6 @@ services:
       retries: 3
     profiles:
       - fastdl
-
-  # --------------------------------------------------------------------------
-  # playit.gg tunnel (optional)
-  #
-  # Gives a stable public address (e.g. something.playit.gg:12345) that
-  # players can favorite, while still hiding your origin IP.
-  #
-  # Setup:
-  #   1. Create account + UDP tunnel at https://playit.gg
-  #   2. Set PLAYIT_SECRET_KEY in .env
-  #   3. Set STEAM_NETWORKING=false in .env
-  #   4. docker compose --profile playit up -d
-  # --------------------------------------------------------------------------
-  playit:
-    image: playitcloud/playit:latest
-    container_name: tf2c-playit
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      - SECRET_KEY=${PLAYIT_SECRET_KEY:-}
-    profiles:
-      - playit
 
   # --------------------------------------------------------------------------
   # Additional server instances (optional)
