@@ -82,6 +82,29 @@ CFG_SUFFIX="_${SERVER_PORT}"
 # ---------------------------------------------------------------------------
 # 1. Install / update game files via SteamCMD
 # ---------------------------------------------------------------------------
+
+# Check if an appmanifest is in a stuck/failed state (StateFlags=6, UpdateResult!=0)
+# and remove it so SteamCMD can start fresh instead of immediately failing.
+clear_stale_manifest() {
+    local dir="$1" appid="$2"
+    local manifest="${dir}/steamapps/appmanifest_${appid}.acf"
+
+    if [[ ! -f "$manifest" ]]; then
+        return 0
+    fi
+
+    local state_flags update_result
+    state_flags=$(grep '"StateFlags"' "$manifest" 2>/dev/null | tr -dc '0-9')
+    update_result=$(grep '"UpdateResult"' "$manifest" 2>/dev/null | tr -dc '0-9')
+
+    # StateFlags=4 means fully installed and clean. Anything else (especially 6)
+    # means a previous update was interrupted or failed.
+    if [[ "${state_flags}" != "4" ]] || [[ -n "${update_result}" && "${update_result}" != "0" ]]; then
+        log_warn "Stale manifest detected for AppID ${appid} (StateFlags=${state_flags}, UpdateResult=${update_result}) — removing to allow clean update"
+        rm -f "$manifest"
+    fi
+}
+
 install_or_update() {
     local dir="$1" appid="$2" label="$3"
     local validate_flag=""
@@ -103,13 +126,45 @@ install_or_update() {
         return 0
     fi
 
-    "${STEAMCMD}" \
-        +force_install_dir "${dir}" \
-        +login anonymous \
-        +app_update "${appid}" ${validate_flag} \
-        +quit || {
-            log_error "SteamCMD failed for ${label} — continuing anyway"
-        }
+    # Clear any stuck manifest from a previous failed update
+    clear_stale_manifest "${dir}" "${appid}"
+
+    local attempt
+    for attempt in 1 2; do
+        if "${STEAMCMD}" \
+            +force_install_dir "${dir}" \
+            +login anonymous \
+            +app_update "${appid}" ${validate_flag} \
+            +quit; then
+
+            # Verify the manifest is actually clean after SteamCMD reports success
+            local manifest="${dir}/steamapps/appmanifest_${appid}.acf"
+            if [[ -f "$manifest" ]]; then
+                local post_state
+                post_state=$(grep '"StateFlags"' "$manifest" 2>/dev/null | tr -dc '0-9')
+                if [[ "${post_state}" == "4" ]]; then
+                    log_info "${label} update successful"
+                    return 0
+                fi
+                # SteamCMD exited 0 but manifest is still dirty
+                log_warn "${label} manifest still dirty after update (StateFlags=${post_state})"
+            else
+                # No manifest at all — first install, trust the exit code
+                return 0
+            fi
+        else
+            log_warn "SteamCMD exited non-zero for ${label} (attempt ${attempt})"
+        fi
+
+        # If first attempt failed, nuke the manifest and retry with validate
+        if [[ "$attempt" == "1" ]]; then
+            log_warn "Retrying ${label} update with validate after clearing manifest..."
+            rm -f "${dir}/steamapps/appmanifest_${appid}.acf"
+            validate_flag="validate"
+        fi
+    done
+
+    log_error "SteamCMD failed for ${label} after 2 attempts — continuing anyway"
 }
 
 mkdir -p "${TF2_DIR}" "${CLASSIFIED_DIR}"
