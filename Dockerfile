@@ -24,6 +24,7 @@ RUN dpkg --add-architecture i386 \
       libcurl3t64-gnutls:i386 \
       libsdl2-2.0-0:i386 \
       procps \
+      tmux \
  && rm -rf /var/lib/apt/lists/*
 
 # Create unprivileged user for srcds

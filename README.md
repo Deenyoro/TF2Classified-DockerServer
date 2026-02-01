@@ -102,11 +102,55 @@ make logs-server N=2
 
 Secondary servers set `UPDATE_GAME_FILES=false` since the primary handles updates. Each server gets a unique `SERVER_PORT` (27016, 27017, etc). Custom content for server N lives in `servers/N/` instead of `data/`.
 
-## Server Management
+## Server Console
+
+The srcds process runs inside a tmux session, giving you full interactive console access.
+
+### Attach to the console
+
+```bash
+make console                # primary server
+make console-server N=2     # server N
+```
+
+Or directly:
+
+```bash
+docker compose exec tf2classified tmux attach -t srcds
+docker compose exec tf2classified-2 tmux attach -t srcds   # server 2
+```
+
+Once attached you're in the live srcds console — type commands like `status`, `changelevel`, `sm plugins list`, etc. exactly as you would on a local dedicated server.
+
+**Detach without stopping the server:** press `Ctrl+B`, then `D`.
+
+### Send commands without attaching
+
+Fire-and-forget commands from outside the console:
+
+```bash
+docker compose exec tf2classified tmux send-keys -t srcds "status" Enter
+docker compose exec tf2classified tmux send-keys -t srcds "changelevel pl_upward" Enter
+docker compose exec tf2classified tmux send-keys -t srcds "sm plugins list" Enter
+```
+
+This is useful for scripts, cron jobs, or quick one-off commands.
+
+### RCON
+
+RCON works on localhost inside the container. From the host:
+
+```bash
+# Install rcon-cli or any RCON client
+rcon -a 127.0.0.1:27015 -p yourpassword status
+```
+
+RCON also works when Steam Networking (SDR) is enabled because srcds still listens on the local port.
+
+### Other management commands
 
 ```bash
 docker compose logs -f                                    # tail logs
-docker attach tf2classified                               # srcds console (Ctrl+P, Ctrl+Q to detach)
 docker compose exec tf2classified /opt/scripts/update.sh  # manual update
 docker compose restart                                    # restart
 docker compose down                                       # stop

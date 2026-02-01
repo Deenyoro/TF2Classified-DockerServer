@@ -1,4 +1,4 @@
-.PHONY: help setup build start stop restart logs console update status start-fastdl compress-maps upload-maps add-server start-server stop-server logs-server clean
+.PHONY: help setup build start stop restart logs console console-server update status start-fastdl compress-maps upload-maps add-server start-server stop-server logs-server clean
 
 help:
 	@echo "TF2 Classified Docker Server"
@@ -9,7 +9,7 @@ help:
 	@echo "  make stop          — Stop the server"
 	@echo "  make restart       — Restart the server (re-runs updates)"
 	@echo "  make logs          — Tail server logs"
-	@echo "  make console       — Attach to server console (Ctrl+P Ctrl+Q to detach)"
+	@echo "  make console       — Attach to server console (Ctrl+B, D to detach)"
 	@echo "  make update        — Update game files inside running container"
 	@echo "  make status        — Show container status"
 	@echo "  make start-fastdl  — Start with self-hosted FastDL"
@@ -17,10 +17,11 @@ help:
 	@echo "  make upload-maps   — Compress + upload maps to Cloudflare R2"
 	@echo ""
 	@echo "  Multi-server:"
-	@echo "  make add-server N=2    — Create dirs + .env for server N"
-	@echo "  make start-server N=2  — Start server N"
-	@echo "  make stop-server N=2   — Stop server N"
-	@echo "  make logs-server N=2   — Tail logs for server N"
+	@echo "  make add-server N=2      — Create dirs + .env for server N"
+	@echo "  make start-server N=2    — Start server N"
+	@echo "  make stop-server N=2     — Stop server N"
+	@echo "  make logs-server N=2     — Tail logs for server N"
+	@echo "  make console-server N=2  — Attach to console for server N"
 	@echo ""
 	@echo "  make clean         — Remove containers and images"
 	@echo ""
@@ -44,8 +45,16 @@ logs:
 	docker compose logs -f
 
 console:
-	@echo "Attaching to console. Press Ctrl+P, Ctrl+Q to detach."
-	docker attach tf2classified
+	@echo "Attaching to srcds console. Press Ctrl+B, D to detach."
+	docker compose exec tf2classified tmux attach -t srcds
+
+console-server:
+ifndef N
+	@echo "Usage: make console-server N=2"
+	@exit 1
+endif
+	@echo "Attaching to srcds console for server $(N). Press Ctrl+B, D to detach."
+	docker compose exec tf2classified-$(N) tmux attach -t srcds
 
 update:
 	docker compose exec tf2classified /opt/scripts/update.sh

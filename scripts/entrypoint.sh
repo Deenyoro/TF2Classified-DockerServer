@@ -393,15 +393,20 @@ export LD_LIBRARY_PATH=".:bin/linux64:${LD_LIBRARY_PATH:-}"
 export AUTO_UPDATE_INTERVAL
 
 # --- Signal handling ---
-# We run srcds in the background so the auto-update checker can run
-# alongside it. Forward SIGTERM/SIGINT to srcds for graceful shutdown.
-SRCDS_PID=""
+# srcds runs inside a tmux session so users can attach to its console
+# interactively. Forward SIGTERM/SIGINT to the srcds process for graceful
+# shutdown.
 shutdown_server() {
-    if [[ -n "${SRCDS_PID}" ]]; then
-        log_info "Shutting down server..."
-        kill -TERM "$SRCDS_PID" 2>/dev/null || true
-        wait "$SRCDS_PID" 2>/dev/null || true
+    log_info "Shutting down server..."
+    # Find the srcds process inside the tmux session
+    local pid
+    pid=$(tmux list-panes -t srcds -F '#{pane_pid}' 2>/dev/null) || true
+    if [[ -n "${pid}" ]]; then
+        kill -TERM "$pid" 2>/dev/null || true
+        # Wait for it to exit
+        while kill -0 "$pid" 2>/dev/null; do sleep 0.5; done
     fi
+    tmux kill-session -t srcds 2>/dev/null || true
     exit 0
 }
 trap shutdown_server SIGTERM SIGINT
@@ -414,30 +419,45 @@ trap shutdown_server SIGTERM SIGINT
 CLIENT_PORT=$((SERVER_PORT + 500))
 TV_PORT=$((SERVER_PORT + 1000))
 
-# --- Start srcds ---
-./srcds_linux64 \
-    -tf_path "${TF2_DIR}" \
-    +map "${START_MAP}" \
-    +maxplayers "${MAX_PLAYERS}" \
-    -port "${SERVER_PORT}" \
-    -clientport "${CLIENT_PORT}" \
-    +tv_port "${TV_PORT}" \
-    -tickrate "${TICKRATE}" \
+# --- Start srcds inside tmux ---
+# Running inside tmux lets users attach to the live srcds console with:
+#   docker compose exec <service> tmux attach -t srcds
+SRCDS_CMD="./srcds_linux64 \
+    -tf_path \"${TF2_DIR}\" \
+    +map \"${START_MAP}\" \
+    +maxplayers \"${MAX_PLAYERS}\" \
+    -port \"${SERVER_PORT}\" \
+    -clientport \"${CLIENT_PORT}\" \
+    +tv_port \"${TV_PORT}\" \
+    -tickrate \"${TICKRATE}\" \
     -console \
     -usercon \
     +servercfgfile server${CFG_SUFFIX}.cfg \
     +exec default${CFG_SUFFIX}.cfg \
-    ${EXTRA_ARGS} &
-SRCDS_PID=$!
+    ${EXTRA_ARGS}"
+
+tmux new-session -d -s srcds "$SRCDS_CMD"
+
+# Give tmux a moment to spawn the process
+sleep 1
+SRCDS_PID=$(tmux list-panes -t srcds -F '#{pane_pid}' 2>/dev/null) || true
+log_info "srcds running in tmux session 'srcds' (PID ${SRCDS_PID:-unknown})"
 
 # --- Start auto-update checker ---
 if [[ "${AUTO_UPDATE_CVAR}" == "1" ]]; then
-    /opt/scripts/auto-update.sh "$SRCDS_PID" &
-    log_info "Auto-update checker started (every ${AUTO_UPDATE_INTERVAL}s)"
+    if [[ -n "${SRCDS_PID}" ]]; then
+        /opt/scripts/auto-update.sh "$SRCDS_PID" &
+        log_info "Auto-update checker started (every ${AUTO_UPDATE_INTERVAL}s)"
+    else
+        log_warn "Could not determine srcds PID — auto-update disabled"
+    fi
 fi
 
-# --- Wait for srcds to exit ---
-wait "$SRCDS_PID"
-EXIT_CODE=$?
-log_info "Server exited (code ${EXIT_CODE})"
-exit $EXIT_CODE
+# --- Wait for tmux session to end ---
+# Poll the tmux session instead of bash wait, since srcds is a tmux child.
+while tmux has-session -t srcds 2>/dev/null; do
+    sleep 2
+done
+
+log_info "Server exited"
+exit 0
