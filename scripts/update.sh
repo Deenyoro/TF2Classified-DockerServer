@@ -27,9 +27,6 @@ log "Updating TF2 Classified (AppID 3557020)..."
 
 log "Re-applying library symlinks..."
 
-(cd "${CLASSIFIED_DIR}/bin/linux64" && rm -f libvstdlib.so && ln -sf libvstdlib_srv.so libvstdlib.so)
-(cd "${CLASSIFIED_DIR}/tf2classified/bin/linux64" && ln -sf server.so server_srv.so)
-
 mkdir -p /home/srcds/.steam/sdk64
 ln -sf "${CLASSIFIED_DIR}/linux64/steamclient.so" /home/srcds/.steam/sdk64/steamclient.so
 
