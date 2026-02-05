@@ -84,19 +84,63 @@ Upload both `.bsp` and `.bsp.bz2` — clients try compressed first and fall back
 
 ## Custom Content
 
-**Configs:** Drop `.cfg` files in `data/cfg/`. In auto mode, `server.cfg` gets rebuilt from `.env` every boot — put your overrides in `data/cfg/server_custom.cfg`. Set `SERVER_CFG_MODE=custom` if you want to manage `server.cfg` yourself.
+All custom content goes in bind-mounted directories that persist across container rebuilds.
 
-**Maps:** `.bsp` files go in `data/maps/`.
+### Configs
 
-**MOTD:** Put `motd.txt` (HTML) and optionally `motd_default.txt` (plain text fallback) in `data/cfg/`.
+Drop `.cfg` files in `data/cfg/`. In auto mode, `server.cfg` gets rebuilt from `.env` every boot — put your overrides in `data/cfg/server_custom.cfg`. Set `SERVER_CFG_MODE=custom` if you want full control over `server.cfg`.
 
-**SourceMod configs:** Override SourceMod settings by placing config files in `data/cfg/sourcemod/`. For example, `data/cfg/sourcemod/sourcemod.cfg` overrides the default. These symlink into the game directory on startup, so they persist across rebuilds.
+### Maps
 
-**SourceMod plugins:** `.smx` files go in `data/addons/sourcemod/plugins/`.
+`.bsp` files go in `data/maps/`. They're automatically symlinked into the game directory on startup.
 
-**SM admin:** Set `SM_ADMIN_STEAMID=STEAM_0:1:12345678` in `.env` ([steamid.io](https://steamid.io)).
+### MOTD
 
-For multi-server setups, each server has its own content directory (`servers/N/cfg/`, `servers/N/addons/`, etc.) so you can have different configs per server.
+Put `motd.txt` (HTML) and optionally `motd_default.txt` (plain text fallback) in `data/cfg/`:
+
+```bash
+echo '<html><body><h1>Welcome!</h1></body></html>' > data/cfg/motd.txt
+```
+
+### SourceMod Configs
+
+Override SourceMod settings by placing config files in `data/cfg/sourcemod/`:
+
+```bash
+mkdir -p data/cfg/sourcemod
+nano data/cfg/sourcemod/sourcemod.cfg
+```
+
+These symlink into the game directory on startup, so they persist across rebuilds. You don't need to switch to manual config mode.
+
+Common files to override:
+- `sourcemod.cfg` — main SourceMod settings
+- `basevotes.cfg` — vote settings
+- `funcommands.cfg` — fun command settings
+
+### SourceMod Plugins
+
+`.smx` files go in `data/addons/sourcemod/plugins/`:
+
+```bash
+cp myplugin.smx data/addons/sourcemod/plugins/
+```
+
+### SM Admin
+
+Set `SM_ADMIN_STEAMID=STEAM_0:1:12345678` in `.env` ([steamid.io](https://steamid.io)).
+
+### Per-Server Content
+
+For multi-server setups, each server has its own content directory:
+
+| Server | Configs | Addons | Maps |
+|--------|---------|--------|------|
+| Primary | `data/cfg/` | `data/addons/` | `data/maps/` |
+| Server 2 | `servers/2/cfg/` | `servers/2/addons/` | `servers/2/maps/` |
+| Server 3 | `servers/3/cfg/` | `servers/3/addons/` | `servers/3/maps/` |
+
+This lets you run different configs, plugins, or maps per server.
 
 ## Running Multiple Servers
 
