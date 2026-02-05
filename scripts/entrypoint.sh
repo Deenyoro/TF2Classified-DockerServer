@@ -56,8 +56,8 @@ echo ""
 : "${SERVER_CFG_MODE:=auto}"
 
 # Mod download URLs — override in .env to pin versions, set to "skip" to disable
-: "${MMS_URL:=https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1383-linux.tar.gz}"
-: "${SM_URL:=https://sm.alliedmods.net/smdrop/1.13/sourcemod-1.13.0-git7291-linux.tar.gz}"
+: "${MMS_URL:=https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1384-linux.tar.gz}"
+: "${SM_URL:=https://sm.alliedmods.net/smdrop/1.13/sourcemod-1.13.0-git7293-linux.tar.gz}"
 : "${SMJANSSON_URL:=https://github.com/srcdslab/sm-ext-SMJansson/releases/download/2.6.1/sm-ext-SMJansson-2.6.1-linux.tar.gz}"
 : "${INSTALL_MODS:=true}"
 
@@ -191,17 +191,6 @@ log_step "Fixing library symlinks..."
 mkdir -p /home/srcds/.steam/sdk64
 if [[ -f "${CLASSIFIED_DIR}/linux64/steamclient.so" ]]; then
     ln -sf "${CLASSIFIED_DIR}/linux64/steamclient.so" /home/srcds/.steam/sdk64/steamclient.so
-fi
-
-# libvstdlib.so -> libvstdlib_srv.so
-# Without this: missing sounds, only stock weapons usable
-if [[ -d "${CLASSIFIED_DIR}/bin/linux64" ]]; then
-    (cd "${CLASSIFIED_DIR}/bin/linux64" && rm -f libvstdlib.so && ln -sf libvstdlib_srv.so libvstdlib.so)
-fi
-
-# server_srv.so -> server.so
-if [[ -d "${CLASSIFIED_DIR}/tf2classified/bin/linux64" ]]; then
-    (cd "${CLASSIFIED_DIR}/tf2classified/bin/linux64" && ln -sf server.so server_srv.so)
 fi
 
 # ---------------------------------------------------------------------------
