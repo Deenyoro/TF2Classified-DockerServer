@@ -90,9 +90,13 @@ Upload both `.bsp` and `.bsp.bz2` — clients try compressed first and fall back
 
 **MOTD:** Put `motd.txt` (HTML) and optionally `motd_default.txt` (plain text fallback) in `data/cfg/`.
 
+**SourceMod configs:** Override SourceMod settings by placing config files in `data/cfg/sourcemod/`. For example, `data/cfg/sourcemod/sourcemod.cfg` overrides the default. These symlink into the game directory on startup, so they persist across rebuilds.
+
 **SourceMod plugins:** `.smx` files go in `data/addons/sourcemod/plugins/`.
 
 **SM admin:** Set `SM_ADMIN_STEAMID=STEAM_0:1:12345678` in `.env` ([steamid.io](https://steamid.io)).
+
+For multi-server setups, each server has its own content directory (`servers/N/cfg/`, `servers/N/addons/`, etc.) so you can have different configs per server.
 
 ## Running Multiple Servers
 

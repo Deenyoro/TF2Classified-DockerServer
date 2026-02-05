@@ -252,6 +252,16 @@ if [[ -d "${SERVER_DATA}/cfg" ]]; then
     done
 fi
 
+# Link SourceMod config overrides (cfg/sourcemod/*.cfg)
+# These override the defaults installed by SourceMod
+if [[ -d "${SERVER_DATA}/cfg/sourcemod" ]]; then
+    mkdir -p "${GAME_DIR}/cfg/sourcemod"
+    for f in "${SERVER_DATA}"/cfg/sourcemod/*; do
+        [[ -f "$f" ]] || continue
+        ln -sf "$f" "${GAME_DIR}/cfg/sourcemod/$(basename "$f")"
+    done
+fi
+
 if [[ -d "${SERVER_DATA}/maps" ]]; then
     for bsp in "${SERVER_DATA}"/maps/*.bsp; do
         [[ -f "$bsp" ]] || continue
