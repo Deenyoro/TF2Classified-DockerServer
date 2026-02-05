@@ -46,21 +46,44 @@ Everything is in `.env`. The important ones:
 | `TICKRATE` | `66` | Server tickrate |
 | `STEAM_NETWORKING` | `true` | IP hiding via Valve relay |
 | `UPDATE_ON_START` | `true` | Run SteamCMD update on each start |
-| `AUTO_UPDATE` | `true` | Poll for updates while running, restart when found |
+| `AUTO_UPDATE` | `true` | Poll for updates while running |
+| `AUTO_UPDATE_MODE` | `immediate` | `immediate`, `graceful` (warn players), or `announce` (manual) |
+| `UPDATE_GRACE_PERIOD` | `60` | Seconds to wait in graceful mode |
 | `AUTO_UPDATE_INTERVAL` | `300` | Seconds between update checks |
 | `SERVER_CFG_MODE` | `auto` | `auto` = rebuild server.cfg from .env every boot. `custom` = you manage it |
 | `SM_ADMIN_STEAMID` | *(empty)* | Your Steam ID for SM admin |
 | `SV_TAGS` | *(empty)* | Server browser tags |
 | `LOG_MAX_SIZE` | `10m` | Max Docker log file size per server |
 | `LOG_MAX_FILE` | `3` | Number of rotated log files to keep |
+| `TMUX_REMAIN_ON_EXIT` | `false` | Keep tmux session after crash (for debugging) |
 
 Mod URLs (`MMS_URL`, `SM_URL`, `SMJANSSON_URL`) default to known-good 64-bit Linux builds. Set any to `skip` to disable. Set `INSTALL_MODS=false` to skip all of them.
 
 ## Auto-Updates
 
-`UPDATE_ON_START=true` runs SteamCMD before each launch. `AUTO_UPDATE=true` runs a background loop that polls Steam every `AUTO_UPDATE_INTERVAL` seconds. When it sees a new build ID, it kills srcds. Docker's restart policy brings the container back up and the update gets applied on the way in.
+`UPDATE_ON_START=true` runs SteamCMD before each launch. `AUTO_UPDATE=true` runs a background loop that polls Steam every `AUTO_UPDATE_INTERVAL` seconds.
 
-Disable background polling with `AUTO_UPDATE=false` — the server still updates on restart.
+### Update Modes
+
+Control what happens when an update is detected with `AUTO_UPDATE_MODE`:
+
+| Mode | Behavior |
+|------|----------|
+| `immediate` | Stop server right away (default) |
+| `graceful` | Warn players in chat, wait `UPDATE_GRACE_PERIOD` seconds, then restart |
+| `announce` | Warn players but wait for manual restart |
+
+**Graceful mode** sends countdown warnings to players at 5min, 2min, 1min, 30s, 10s, and final countdown. To extend the grace period during countdown:
+
+```bash
+docker compose exec tf2classified touch /tmp/extend_update_grace
+```
+
+Each touch adds another `UPDATE_GRACE_PERIOD` seconds.
+
+**Announce mode** notifies players but doesn't auto-restart. Useful if you want to control exactly when restarts happen.
+
+Disable background polling entirely with `AUTO_UPDATE=false` — the server still updates on container restart.
 
 ## Custom Map Downloads (FastDL)
 
@@ -258,6 +281,14 @@ docker compose exec tf2classified cat /data/classified/tf2classified/addons/meta
 **Container exits on first run:** It's downloading ~22GB. Watch with `docker compose logs -f`. If SteamCMD keeps failing, try `VALIDATE_INSTALL=1`.
 
 **Disk space:** You need at least 25GB free for the initial download.
+
+**Server crashes with no logs:** Enable `TMUX_REMAIN_ON_EXIT=true` in `.env` to keep the tmux session alive after srcds crashes. Then attach to see the last output:
+
+```bash
+docker compose exec tf2classified tmux attach -t srcds
+```
+
+This helps debug crashes that don't write to log files.
 
 ## Links
 

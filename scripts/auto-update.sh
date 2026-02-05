@@ -2,9 +2,11 @@
 # auto-update.sh — Background update checker for TF2 Classified
 #
 # Periodically compares local vs remote build IDs using SteamCMD.
-# When an update is detected, sends SIGTERM to srcds so the container
-# exits and Docker restarts it. The entrypoint's UPDATE_ON_START then
-# applies the update via SteamCMD before relaunching the server.
+# When an update is detected, behavior depends on AUTO_UPDATE_MODE:
+#
+#   immediate  — Stop server right away (default, current behavior)
+#   graceful   — Warn players in-game, wait UPDATE_GRACE_PERIOD seconds, then stop
+#   announce   — Warn players but don't auto-restart; wait for manual intervention
 #
 # Usage: auto-update.sh <srcds_pid>
 #   Started automatically by entrypoint.sh when AUTO_UPDATE=true.
@@ -16,23 +18,45 @@ set -uo pipefail
 : "${TF2_DIR:=/data/tf}"
 : "${CLASSIFIED_DIR:=/data/classified}"
 : "${AUTO_UPDATE_INTERVAL:=300}"
+: "${AUTO_UPDATE_MODE:=immediate}"
+: "${UPDATE_GRACE_PERIOD:=60}"
 : "${UPDATE_GAME_FILES:=true}"
+: "${RCON_PASSWORD:=}"
+: "${SERVER_PORT:=27015}"
 
 STEAMCMD="${STEAMCMD_DIR}/steamcmd.sh"
 SRCDS_PID="$1"
 
+# Grace period extension file — touch this to add more time
+EXTEND_FILE="/tmp/extend_update_grace"
+
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 log()  { echo -e "${CYAN}[AUTO-UPDATE]${NC} $1"; }
 warn() { echo -e "${YELLOW}[AUTO-UPDATE]${NC} $1"; }
+error() { echo -e "${RED}[AUTO-UPDATE]${NC} $1"; }
+
+# ---------------------------------------------------------------------------
+# RCON helper — send command to srcds via tmux (more reliable than rcon cli)
+# ---------------------------------------------------------------------------
+rcon_cmd() {
+    local cmd="$1"
+    tmux send-keys -t srcds "$cmd" Enter 2>/dev/null || true
+}
+
+# Send chat message to all players
+say_chat() {
+    local msg="$1"
+    rcon_cmd "say $msg"
+}
 
 # ---------------------------------------------------------------------------
 # Build ID helpers
 # ---------------------------------------------------------------------------
 
 # Read local build ID from SteamCMD's appmanifest_<appid>.acf
-# SteamCMD stores these in its own steamapps/ dir when using +force_install_dir
 get_local_buildid() {
     local appid="$1"
     local manifest=""
@@ -91,9 +115,75 @@ check_app() {
 }
 
 # ---------------------------------------------------------------------------
+# Graceful shutdown with player warning
+# ---------------------------------------------------------------------------
+graceful_shutdown() {
+    local grace_seconds="${UPDATE_GRACE_PERIOD}"
+    local remaining="$grace_seconds"
+
+    # Remove any stale extend file
+    rm -f "$EXTEND_FILE"
+
+    log "Starting graceful shutdown (${grace_seconds}s grace period)"
+    log "To extend: touch $EXTEND_FILE (adds ${grace_seconds}s each time)"
+
+    # Initial warning
+    say_chat "[SERVER] Update available! Server will restart in ${remaining} seconds."
+    say_chat "[SERVER] Please finish your current round."
+
+    while [[ $remaining -gt 0 ]]; do
+        sleep 1
+        ((remaining--))
+
+        # Check for extension request
+        if [[ -f "$EXTEND_FILE" ]]; then
+            rm -f "$EXTEND_FILE"
+            remaining=$((remaining + grace_seconds))
+            log "Grace period extended! Now ${remaining}s remaining"
+            say_chat "[SERVER] Restart delayed! Now ${remaining} seconds until update."
+        fi
+
+        # Countdown warnings
+        case $remaining in
+            300) say_chat "[SERVER] Server restart in 5 minutes for update." ;;
+            120) say_chat "[SERVER] Server restart in 2 minutes for update." ;;
+            60)  say_chat "[SERVER] Server restart in 1 minute for update!" ;;
+            30)  say_chat "[SERVER] Server restart in 30 seconds!" ;;
+            10)  say_chat "[SERVER] Server restart in 10 seconds!" ;;
+            5|4|3|2|1) say_chat "[SERVER] Restarting in ${remaining}..." ;;
+        esac
+
+        # Check if srcds still running
+        if ! kill -0 "$SRCDS_PID" 2>/dev/null; then
+            log "srcds no longer running during grace period"
+            exit 0
+        fi
+    done
+
+    say_chat "[SERVER] Restarting now for update. See you soon!"
+    sleep 2
+}
+
+# ---------------------------------------------------------------------------
+# Announce-only mode (no auto-restart)
+# ---------------------------------------------------------------------------
+announce_update() {
+    warn "Update available! AUTO_UPDATE_MODE=announce — waiting for manual restart"
+    say_chat "[SERVER] Game update available! Restart when convenient."
+    say_chat "[SERVER] Admin: run 'docker compose restart' to apply update."
+
+    # Don't check again for this session — just wait
+    log "Waiting for manual intervention (or container restart)"
+    while kill -0 "$SRCDS_PID" 2>/dev/null; do
+        sleep 60
+    done
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
-log "Started (checking every ${AUTO_UPDATE_INTERVAL}s)"
+log "Started (checking every ${AUTO_UPDATE_INTERVAL}s, mode: ${AUTO_UPDATE_MODE})"
 
 while true; do
     sleep "${AUTO_UPDATE_INTERVAL}"
@@ -115,10 +205,22 @@ while true; do
     fi
 
     if $update_found; then
-        warn "Stopping server for update — container will restart automatically..."
-        kill -TERM "$SRCDS_PID" 2>/dev/null || true
-        # The entrypoint will catch srcds exiting and the container will restart.
-        # UPDATE_ON_START in the new entrypoint run will apply the update.
-        exit 0
+        case "${AUTO_UPDATE_MODE,,}" in
+            graceful)
+                graceful_shutdown
+                warn "Grace period complete — stopping server for update"
+                kill -TERM "$SRCDS_PID" 2>/dev/null || true
+                exit 0
+                ;;
+            announce)
+                announce_update
+                # announce_update loops forever, so we won't reach here
+                ;;
+            immediate|*)
+                warn "Stopping server for update — container will restart automatically..."
+                kill -TERM "$SRCDS_PID" 2>/dev/null || true
+                exit 0
+                ;;
+        esac
     fi
 done

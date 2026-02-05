@@ -51,6 +51,12 @@ echo ""
 # Auto-update: polls Steam for new builds while server is running
 : "${AUTO_UPDATE:=true}"
 : "${AUTO_UPDATE_INTERVAL:=300}"
+# Auto-update mode: immediate (default), graceful (warn players first), announce (notify only)
+: "${AUTO_UPDATE_MODE:=immediate}"
+# Grace period in seconds for graceful mode (players get warned before restart)
+: "${UPDATE_GRACE_PERIOD:=60}"
+# Keep tmux session alive after srcds exits (for crash debugging)
+: "${TMUX_REMAIN_ON_EXIT:=false}"
 
 # server.cfg mode: auto (default) or custom
 : "${SERVER_CFG_MODE:=auto}"
@@ -464,6 +470,12 @@ SRCDS_CMD="./srcds_linux64 \
 
 tmux new-session -d -s srcds "$SRCDS_CMD"
 
+# Keep tmux session alive after srcds exits (for crash debugging)
+if [[ "${TMUX_REMAIN_ON_EXIT,,}" == "true" ]]; then
+    tmux set-option -t srcds remain-on-exit on
+    log_info "tmux remain-on-exit enabled (session persists after crash for debugging)"
+fi
+
 # Give tmux a moment to spawn the process
 sleep 1
 SRCDS_PID=$(tmux list-panes -t srcds -F '#{pane_pid}' 2>/dev/null) || true
@@ -472,8 +484,9 @@ log_info "srcds running in tmux session 'srcds' (PID ${SRCDS_PID:-unknown})"
 # --- Start auto-update checker ---
 if [[ "${AUTO_UPDATE_CVAR}" == "1" ]]; then
     if [[ -n "${SRCDS_PID}" ]]; then
+        export AUTO_UPDATE_MODE UPDATE_GRACE_PERIOD RCON_PASSWORD SERVER_PORT
         /opt/scripts/auto-update.sh "$SRCDS_PID" &
-        log_info "Auto-update checker started (every ${AUTO_UPDATE_INTERVAL}s)"
+        log_info "Auto-update checker started (every ${AUTO_UPDATE_INTERVAL}s, mode: ${AUTO_UPDATE_MODE})"
     else
         log_warn "Could not determine srcds PID — auto-update disabled"
     fi
