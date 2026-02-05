@@ -5,17 +5,17 @@ Dockerized TF2 Classified dedicated server. Edit `.env`, run `docker compose up 
 - IP hidden by default via Steam Datagram Relay
 - Auto-updates TF2 base and TF2 Classified while running
 - MetaMod:Source, SourceMod, and SMJansson pre-installed
-- Multi-server support off a single set of game files
-- All config lives in `.env`
+- Multi-server support with shared game files (~22GB installs once)
+- Configurable Docker logging per server
+- FastDL auto-compression on startup
 
 ## Quick Start
 
 ```bash
-cd tf2classified-docker
-chmod +x setup.sh && ./setup.sh   # creates dirs, generates .env with random RCON pass
-nano .env                          # tweak to your liking
-docker compose up -d               # build + run
-docker compose logs -f             # watch it (first boot downloads ~20GB)
+./setup.sh                    # creates dirs, generates .env with random RCON pass
+nano .env                     # tweak to your liking
+docker compose up -d          # build + run
+docker compose logs -f        # watch it (first boot downloads ~22GB)
 ```
 
 Or: `make setup && make start && make logs`
@@ -51,6 +51,8 @@ Everything is in `.env`. The important ones:
 | `SERVER_CFG_MODE` | `auto` | `auto` = rebuild server.cfg from .env every boot. `custom` = you manage it |
 | `SM_ADMIN_STEAMID` | *(empty)* | Your Steam ID for SM admin |
 | `SV_TAGS` | *(empty)* | Server browser tags |
+| `LOG_MAX_SIZE` | `10m` | Max Docker log file size per server |
+| `LOG_MAX_FILE` | `3` | Number of rotated log files to keep |
 
 Mod URLs (`MMS_URL`, `SM_URL`, `SMJANSSON_URL`) default to known-good 64-bit Linux builds. Set any to `skip` to disable. Set `INSTALL_MODS=false` to skip all of them.
 
@@ -64,9 +66,10 @@ Disable background polling with `AUTO_UPDATE=false` — the server still updates
 
 Source normally trickle-feeds map files through the game connection. FastDL tells clients to grab them over HTTP instead.
 
+Maps in `data/maps/` are automatically compressed to `data/fastdl/tf2classified/maps/` on container startup. You can also run it manually:
+
 ```bash
-cp my_custom_map.bsp data/maps/
-make compress-maps   # bzip2 copies into data/fastdl/tf2classified/maps/
+make compress-maps
 ```
 
 Host the compressed files somewhere (Cloudflare R2 is free and works well, or use the included nginx with `docker compose --profile fastdl up -d`), then set `FASTDL_URL` in `.env` and restart.
@@ -85,22 +88,41 @@ Upload both `.bsp` and `.bsp.bz2` — clients try compressed first and fall back
 
 **Maps:** `.bsp` files go in `data/maps/`.
 
+**MOTD:** Put `motd.txt` (HTML) and optionally `motd_default.txt` (plain text fallback) in `data/cfg/`.
+
 **SourceMod plugins:** `.smx` files go in `data/addons/sourcemod/plugins/`.
 
 **SM admin:** Set `SM_ADMIN_STEAMID=STEAM_0:1:12345678` in `.env` ([steamid.io](https://steamid.io)).
 
 ## Running Multiple Servers
 
-Multiple servers share the game files volume (~20GB) so nothing gets re-downloaded. Each one just needs its own port, name, and RCON password.
+All servers share game files (~22GB downloads once). Each server has its own config, logs, and port.
 
 ```bash
 make add-server N=2    # creates dirs + .env.server2
-nano .env.server2
+nano .env.server2      # change name, port, RCON, etc.
 make start-server N=2
 make logs-server N=2
 ```
 
-Secondary servers set `UPDATE_GAME_FILES=false` since the primary handles updates. Each server gets a unique `SERVER_PORT` (27016, 27017, etc). Custom content for server N lives in `servers/N/` instead of `data/`.
+### What's shared vs per-server
+
+| Content | Primary Server | Server N | Can Share? |
+|---------|---------------|----------|------------|
+| Game files (TF2 + TF2C) | `tf2-data` volume | Same volume | Always shared |
+| Configs | `data/cfg/` | `servers/N/cfg/` | Edit docker-compose.yml |
+| Addons | `data/addons/` | `servers/N/addons/` | Edit docker-compose.yml |
+| Maps | `data/maps/` | `servers/N/maps/` | Edit docker-compose.yml |
+| Logs | `data/logs/` | `servers/N/logs/` | Never shared |
+| Demos | `data/demos/` | `servers/N/demos/` | Never shared |
+
+To share maps/addons across all servers, edit `docker-compose.yml` and change `./servers/N/maps` to `./data/maps` (same for addons).
+
+Secondary servers set `UPDATE_GAME_FILES=false` since the primary handles updates. Each server gets a unique `SERVER_PORT` (27016, 27017, etc).
+
+### Per-server logging
+
+Each server reads `LOG_MAX_SIZE` and `LOG_MAX_FILE` from its own `.env.serverN` file, so you can configure different log retention per server.
 
 ## Server Console
 
@@ -162,27 +184,12 @@ docker compose build --no-cache && docker compose up -d   # full rebuild
 The image is just Debian + SteamCMD + runtime libs (~500MB). Game files go into Docker volumes on first boot:
 
 - **AppID 232250** — TF2 Dedicated Server (~15GB)
-- **AppID 3557020** — TF2 Classified (~5GB)
-- **MetaMod:Source 2.0** build 1383 (TF2C needs >= 1380)
-- **SourceMod 1.13** build 7292 (includes TF2C gamedata)
+- **AppID 3557020** — TF2 Classified (~7GB)
+- **MetaMod:Source 2.0** build 1384 (TF2C needs >= 1380)
+- **SourceMod 1.13** build 7293 (includes TF2C gamedata)
 - **SMJansson 2.6.1** 64-bit (JSON extension for plugins)
 
 These install once on first boot. Delete the `classified-data` volume to force a reinstall.
-
-## Library Symlinks
-
-TF2C needs three symlinks or it won't start / will have broken audio and weapons. The entrypoint handles them on every boot:
-
-- `bin/linux64/libvstdlib.so` -> `libvstdlib_srv.so` (without this: no sounds, stock weapons only)
-- `tf2classified/bin/linux64/server_srv.so` -> `server.so`
-- `~/.steam/sdk64/steamclient.so` -> server's `linux64/steamclient.so`
-
-If sounds are missing or only stock weapons work, a volume mount probably overwrote the binaries. Exec in and redo the symlink manually:
-
-```bash
-docker compose exec tf2classified bash
-cd /data/classified/bin/linux64 && rm -f libvstdlib.so && ln -s libvstdlib_srv.so libvstdlib.so
-```
 
 ## Server Verification
 
@@ -200,7 +207,9 @@ Once your server is running, you can ask the TF2C team for manual verification. 
 docker compose exec tf2classified cat /data/classified/tf2classified/addons/metamod.vdf
 ```
 
-**Container exits on first run:** It's downloading ~20GB. Watch with `docker compose logs -f`. If SteamCMD keeps failing, try `VALIDATE_INSTALL=1`.
+**Container exits on first run:** It's downloading ~22GB. Watch with `docker compose logs -f`. If SteamCMD keeps failing, try `VALIDATE_INSTALL=1`.
+
+**Disk space:** You need at least 25GB free for the initial download.
 
 ## Links
 

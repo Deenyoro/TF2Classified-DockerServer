@@ -56,8 +56,8 @@ echo ""
 : "${SERVER_CFG_MODE:=auto}"
 
 # Mod download URLs — override in .env to pin versions, set to "skip" to disable
-: "${MMS_URL:=https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1383-linux.tar.gz}"
-: "${SM_URL:=https://sm.alliedmods.net/smdrop/1.13/sourcemod-1.13.0-git7291-linux.tar.gz}"
+: "${MMS_URL:=https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1384-linux.tar.gz}"
+: "${SM_URL:=https://sm.alliedmods.net/smdrop/1.13/sourcemod-1.13.0-git7293-linux.tar.gz}"
 : "${SMJANSSON_URL:=https://github.com/srcdslab/sm-ext-SMJansson/releases/download/2.6.1/sm-ext-SMJansson-2.6.1-linux.tar.gz}"
 : "${INSTALL_MODS:=true}"
 
@@ -181,31 +181,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Library symlinks — required or the server flat out won't work
-#
-# See: https://wiki.tf2classic.com/wiki/Dedicated_Linux_server
-# ---------------------------------------------------------------------------
-log_step "Fixing library symlinks..."
-
-# steamclient.so -> ~/.steam/sdk64/
-mkdir -p /home/srcds/.steam/sdk64
-if [[ -f "${CLASSIFIED_DIR}/linux64/steamclient.so" ]]; then
-    ln -sf "${CLASSIFIED_DIR}/linux64/steamclient.so" /home/srcds/.steam/sdk64/steamclient.so
-fi
-
-# libvstdlib.so -> libvstdlib_srv.so
-# Without this: missing sounds, only stock weapons usable
-if [[ -d "${CLASSIFIED_DIR}/bin/linux64" ]]; then
-    (cd "${CLASSIFIED_DIR}/bin/linux64" && rm -f libvstdlib.so && ln -sf libvstdlib_srv.so libvstdlib.so)
-fi
-
-# server_srv.so -> server.so
-if [[ -d "${CLASSIFIED_DIR}/tf2classified/bin/linux64" ]]; then
-    (cd "${CLASSIFIED_DIR}/tf2classified/bin/linux64" && ln -sf server.so server_srv.so)
-fi
-
-# ---------------------------------------------------------------------------
-# 3. Install MetaMod / SourceMod / SMJansson (first run only)
+# 2. Install MetaMod / SourceMod / SMJansson (first run only)
 # ---------------------------------------------------------------------------
 GAME_DIR="${CLASSIFIED_DIR}/tf2classified"
 
@@ -258,7 +234,7 @@ VDFEOF
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Link user content from /data bind mounts
+# 3. Link user content from /data bind mounts
 # ---------------------------------------------------------------------------
 log_step "Linking custom content..."
 
@@ -266,7 +242,13 @@ log_step "Linking custom content..."
 if [[ -d "${SERVER_DATA}/cfg" ]]; then
     for f in "${SERVER_DATA}"/cfg/*; do
         [[ -f "$f" ]] || continue
-        ln -sf "$f" "${GAME_DIR}/cfg/$(basename "$f")"
+        fname="$(basename "$f")"
+        # motd files live in the game root, not cfg/
+        if [[ "${fname}" == "motd.txt" || "${fname}" == "motd_default.txt" ]]; then
+            ln -sf "$f" "${GAME_DIR}/${fname}"
+        else
+            ln -sf "$f" "${GAME_DIR}/cfg/${fname}"
+        fi
     done
 fi
 
@@ -282,7 +264,41 @@ if [[ -d "${SERVER_DATA}/addons" ]] && [[ "$(ls -A "${SERVER_DATA}/addons" 2>/de
 fi
 
 # ---------------------------------------------------------------------------
-# 5. server.cfg — auto-generate from .env or leave alone
+# 3b. Auto-compress maps for FastDL
+# ---------------------------------------------------------------------------
+FASTDL_MAPS_DIR="${SERVER_DATA}/fastdl/tf2classified/maps"
+if [[ -d "${SERVER_DATA}/maps" ]] && command -v bzip2 &>/dev/null; then
+    shopt -s nullglob
+    BSP_FILES=("${SERVER_DATA}"/maps/*.bsp)
+    shopt -u nullglob
+
+    if [[ ${#BSP_FILES[@]} -gt 0 ]]; then
+        mkdir -p "${FASTDL_MAPS_DIR}"
+        COMPRESSED=0
+        for bsp in "${BSP_FILES[@]}"; do
+            filename="$(basename "${bsp}")"
+            # Copy raw .bsp if missing or source is newer
+            if [[ ! -f "${FASTDL_MAPS_DIR}/${filename}" ]] || [[ "${bsp}" -nt "${FASTDL_MAPS_DIR}/${filename}" ]]; then
+                cp "${bsp}" "${FASTDL_MAPS_DIR}/${filename}"
+            fi
+            # Compress if missing or source is newer
+            if [[ ! -f "${FASTDL_MAPS_DIR}/${filename}.bz2" ]] || [[ "${bsp}" -nt "${FASTDL_MAPS_DIR}/${filename}.bz2" ]]; then
+                bzip2 -kf "${FASTDL_MAPS_DIR}/${filename}"
+                ((COMPRESSED++))
+            fi
+        done
+        if [[ ${COMPRESSED} -gt 0 ]]; then
+            log_info "FastDL: compressed ${COMPRESSED} new/updated map(s) in ${FASTDL_MAPS_DIR}"
+        else
+            log_info "FastDL: all ${#BSP_FILES[@]} map(s) already compressed"
+        fi
+    fi
+elif [[ -d "${SERVER_DATA}/maps" ]] && ! command -v bzip2 &>/dev/null; then
+    log_warn "bzip2 not found — skipping FastDL map compression"
+fi
+
+# ---------------------------------------------------------------------------
+# 4. server.cfg — auto-generate from .env or leave alone
 # ---------------------------------------------------------------------------
 if [[ "${SERVER_CFG_MODE,,}" == "custom" ]]; then
     log_info "SERVER_CFG_MODE=custom — not writing server.cfg (you manage it)"
@@ -352,7 +368,7 @@ fi
 [[ -n "${FASTDL_URL}" ]] && log_info "FastDL: ${FASTDL_URL}"
 
 # ---------------------------------------------------------------------------
-# 6. SourceMod admin
+# 5. SourceMod admin
 # ---------------------------------------------------------------------------
 if [[ -n "${SM_ADMIN_STEAMID}" ]]; then
     ADMIN_FILE="${GAME_DIR}/addons/sourcemod/configs/admins_simple.ini"
@@ -370,7 +386,7 @@ if [[ -n "${SM_ADMIN_STEAMID}" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 7. Launch
+# 6. Launch
 # ---------------------------------------------------------------------------
 AUTO_UPDATE_CVAR=$(bool_to_cvar "${AUTO_UPDATE}")
 

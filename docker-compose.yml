@@ -7,8 +7,9 @@
 #
 # Steam Datagram Relay hides your IP by default.
 #
-# Multiple servers share the tf2-data volume (TF2 base, ~15GB) so it only
-# downloads once. Each server gets its own TF2 Classified volume and config.
+# Multiple servers share game volumes (TF2 base + TF2 Classified, ~22GB) so
+# they only download once. Each server gets its own configs, logs, and demos.
+# Custom maps can be shared (data/maps) or per-server (servers/N/maps).
 
 services:
   tf2classified:
@@ -51,8 +52,8 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILE:-3}"
 
   # --------------------------------------------------------------------------
   # FastDL web server (optional)
@@ -104,17 +105,20 @@ services:
   # --------------------------------------------------------------------------
   # Additional server instances (optional)
   #
-  # Shares game volumes with the primary server so you don't re-download
-  # ~20GB. Only needs its own configs, plugins, and port.
+  # All servers share game files (~22GB downloads once). Each server has:
+  #   - Own config (servers/N/cfg/) or shared (data/cfg/)
+  #   - Own addons (servers/N/addons/) or shared (data/addons/)
+  #   - Own maps (servers/N/maps/) or shared (data/maps/)
+  #   - Own logs (servers/N/logs/) — always per-server
+  #   - Own demos (servers/N/demos/) — always per-server
   #
   # Setup:
   #   1. make add-server N=2        (creates dirs + .env.server2)
   #   2. Edit .env.server2          (change name, port, RCON, etc.)
   #   3. docker compose --profile server2 up -d
   #
-  # To add more: duplicate one of the blocks below, change the number,
-  # and create a matching .env.serverN + servers/N/ directory.
-  # The primary server must be running first (it owns the TF2 base volume).
+  # To share maps/addons with the primary server, edit the volumes below
+  # to point to ./data/maps and ./data/addons instead of ./servers/N/...
   # --------------------------------------------------------------------------
   tf2classified-2:
     build:
@@ -129,11 +133,14 @@ services:
     env_file:
       - .env.server2
     volumes:
+      # Shared game files (all servers use the same ~22GB install)
       - tf2-data:/data/tf
       - classified-data:/data/classified
+      # Per-server content (change to ./data/X to share with primary)
       - ./servers/2/cfg:/data/cfg:ro
       - ./servers/2/addons:/data/addons:ro
       - ./servers/2/maps:/data/maps:ro
+      # Per-server outputs (always separate)
       - ./servers/2/logs:/data/logs
       - ./servers/2/demos:/data/demos
     stop_grace_period: 30s
@@ -142,8 +149,8 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILE:-3}"
     profiles:
       - server2
 
@@ -160,11 +167,14 @@ services:
     env_file:
       - .env.server3
     volumes:
+      # Shared game files (all servers use the same ~22GB install)
       - tf2-data:/data/tf
       - classified-data:/data/classified
+      # Per-server content (change to ./data/X to share with primary)
       - ./servers/3/cfg:/data/cfg:ro
       - ./servers/3/addons:/data/addons:ro
       - ./servers/3/maps:/data/maps:ro
+      # Per-server outputs (always separate)
       - ./servers/3/logs:/data/logs
       - ./servers/3/demos:/data/demos
     stop_grace_period: 30s
@@ -173,8 +183,8 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILE:-3}"
     profiles:
       - server3
 
