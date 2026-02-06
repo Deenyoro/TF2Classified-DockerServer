@@ -976,10 +976,6 @@ disable_roundtime() {
 # Map Config (YAMCP — per-map/prefix/gametype cfg execution)
 # =========================================================================
 install_mapconfig() {
-    # YAMCP includes <tf2> which requires the TF2 Tools game extension
-    patch_tf2tools_gamedata
-    link_tf2_game_extension
-
     if [[ -f "${ADDON_MARKERS}/mapconfig" ]]; then
         ensure_plugin_active "yamcp.smx"
         log_info "Map Config already installed"

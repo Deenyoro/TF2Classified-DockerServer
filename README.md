@@ -47,16 +47,16 @@ Everything is in `.env`. The important ones:
 | `SERVER_PORT` | `27015` | Game port (UDP) |
 | `TICKRATE` | `66` | Server tickrate |
 | `STEAM_NETWORKING` | `true` | IP hiding via Valve relay |
-| `UPDATE_ON_START` | `false` | Run SteamCMD update on each start |
-| `AUTO_UPDATE` | `false` | Poll for updates while running |
+| `UPDATE_ON_START` | `true` | Run SteamCMD update on each start |
+| `AUTO_UPDATE` | `true` | Poll for updates while running |
 | `AUTO_UPDATE_MODE` | `immediate` | `immediate`, `graceful`, or `announce` — see [Auto-Updates](#auto-updates) |
 | `UPDATE_GRACE_PERIOD` | `60` | Seconds to wait in graceful mode |
 | `AUTO_UPDATE_INTERVAL` | `300` | Seconds between update checks |
 | `SERVER_CFG_MODE` | `auto` | `auto` = rebuild server.cfg from .env every boot. `custom` = you manage it |
 | `SM_ADMIN_STEAMID` | *(empty)* | Your Steam ID for SM admin |
 | `SV_TAGS` | *(empty)* | Server browser tags |
-| `LOG_MAX_SIZE` | `50m` | Max Docker log file size per server |
-| `LOG_MAX_FILE` | `5` | Number of rotated log files to keep |
+| `LOG_MAX_SIZE` | `10m` | Max Docker log file size per server |
+| `LOG_MAX_FILE` | `3` | Number of rotated log files to keep |
 | `TMUX_REMAIN_ON_EXIT` | `false` | Keep tmux session after crash (for debugging) |
 | `ADDON_*` | `false` | Optional addons — see [Optional Addons](#optional-addons) |
 
@@ -382,10 +382,10 @@ docker compose exec tf2classified tmux attach -t srcds
 - MetaMod:Source: https://www.metamodsource.net
 - SMJansson (source): https://github.com/srcdslab/sm-ext-SMJansson
 - SMJansson (64-bit build): https://forums.alliedmods.net/showthread.php?t=184604&page=8
-- War3Source:EVO: https://github.com/AshesToAshes2/War3Source-EVO
-- VSH: https://github.com/redsunservers/VSH
-- MapChooser Extended: https://github.com/fafa-junhe/MapChooser-Extended
-- NativeVotes: https://github.com/sapphonie/SM-NativeVotes
+- War3Source:EVO: https://github.com/War3Evo/War3Source-EVO
+- VSH: https://github.com/Chdata/Versus-Saxton-Hale
+- MapChooser Extended: https://github.com/Totenfluch/sourcemod-mapchooser-extended
+- NativeVotes: https://github.com/Heapons/sourcemod-nativevotes-updated
 - Round-Time: https://github.com/KatsuteTF/Round-Time
 - Map Config (YAMCP): https://github.com/nosoop/SM-YetAnotherMapConfigPlugin
 - TF2Attributes: https://github.com/FlaminSarge/tf2attributes
