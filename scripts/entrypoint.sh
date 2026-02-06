@@ -313,6 +313,27 @@ if [[ -d "${SERVER_DATA}/cfg/sourcemod" ]]; then
     done
 fi
 
+# Link SourceMod configs overrides (addons/sourcemod/configs/)
+# Addon plugins (Advertisements, MCE, RTD, VSH, etc.) store their config
+# files here. Symlinks let users override them from data/addons/sourcemod/configs/
+if [[ -d "${SERVER_DATA}/addons/sourcemod/configs" ]]; then
+    mkdir -p "${GAME_DIR}/addons/sourcemod/configs"
+    for f in "${SERVER_DATA}"/addons/sourcemod/configs/*; do
+        [[ -e "$f" ]] || continue
+        local_name="$(basename "$f")"
+        if [[ -d "$f" ]]; then
+            # Subdirectory (e.g. mapchooser_extended/, saxton_hale/)
+            mkdir -p "${GAME_DIR}/addons/sourcemod/configs/${local_name}"
+            for sub in "$f"/*; do
+                [[ -f "$sub" ]] || continue
+                ln -sf "$sub" "${GAME_DIR}/addons/sourcemod/configs/${local_name}/$(basename "$sub")"
+            done
+        else
+            ln -sf "$f" "${GAME_DIR}/addons/sourcemod/configs/${local_name}"
+        fi
+    done
+fi
+
 if [[ -d "${SERVER_DATA}/maps" ]]; then
     for bsp in "${SERVER_DATA}"/maps/*.bsp; do
         [[ -f "$bsp" ]] || continue

@@ -126,6 +126,17 @@ Common files to override:
 - `basevotes.cfg` — vote settings
 - `funcommands.cfg` — fun command settings
 
+### Addon Configs
+
+Override addon config files (Advertisements, MCE, RTD, VSH, etc.) by placing them in `data/addons/sourcemod/configs/`:
+
+```bash
+mkdir -p data/addons/sourcemod/configs
+nano data/addons/sourcemod/configs/advertisements.txt
+```
+
+Subdirectories work too (e.g. `data/addons/sourcemod/configs/mapchooser_extended/`). These symlink over the addon defaults on startup, so your changes persist across rebuilds and addon reinstalls.
+
 ### SourceMod Plugins
 
 `.smx` files go in `data/addons/sourcemod/plugins/`:
@@ -204,7 +215,7 @@ Set any of these to `true` in `.env` to enable:
 Dependencies are installed and cleaned up automatically:
 
 - **VSH** installs: TF2Items extension, TF2 Tools extension (patched for TF2C)
-- **War3Source** installs: TF2 Tools extension (patched for TF2C), TF2Items extension
+- **War3Source** installs: TF2 Tools extension (patched for TF2C)
 - **tf2attributes** installs: TF2 Tools extension (patched for TF2C)
 - **Map Config** installs: TF2 Tools extension (patched for TF2C)
 
