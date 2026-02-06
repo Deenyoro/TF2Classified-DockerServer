@@ -75,6 +75,8 @@ echo ""
 : "${ADDON_RTD:=false}"
 : "${ADDON_VSH:=false}"
 : "${ADDON_WAR3SOURCE:=false}"
+: "${ADDON_ROUNDTIME:=false}"
+: "${ADDON_MAPCONFIG:=false}"
 
 # Addon download URLs — override to pin versions
 : "${TF2ATTR_URL:=https://github.com/FlaminSarge/tf2attributes/releases/download/v1.7.5}"
@@ -85,6 +87,7 @@ echo ""
 : "${VSH_URL:=https://github.com/Chdata/Versus-Saxton-Hale/archive/refs/heads/master.tar.gz}"
 : "${TF2ITEMS_URL:=https://github.com/nosoop/SMExt-TF2Items/releases/download/r13-main/package.tar.gz}"
 : "${WAR3SOURCE_URL:=https://github.com/War3Evo/War3Source-EVO/archive/refs/heads/master.tar.gz}"
+: "${ROUNDTIME_URL:=https://github.com/KatsuteTF/Round-Time/releases/download/1.0/Time.smx}"
 
 STEAMCMD="${STEAMCMD_DIR}/steamcmd.sh"
 
@@ -276,8 +279,9 @@ fi
 # ---------------------------------------------------------------------------
 export ADDON_TF2ATTRIBUTES ADDON_MAPCHOOSER_EXTENDED ADDON_NATIVEVOTES
 export ADDON_ADVERTISEMENTS ADDON_RTD ADDON_VSH ADDON_WAR3SOURCE
+export ADDON_ROUNDTIME ADDON_MAPCONFIG
 export TF2ATTR_URL MCE_URL NATIVEVOTES_URL ADVERTISEMENTS_URL RTD_URL
-export VSH_URL TF2ITEMS_URL WAR3SOURCE_URL
+export VSH_URL TF2ITEMS_URL WAR3SOURCE_URL ROUNDTIME_URL
 /opt/scripts/install-addons.sh "${GAME_DIR}"
 
 # ---------------------------------------------------------------------------
@@ -467,6 +471,8 @@ ACTIVE_ADDONS=""
 [[ "${ADDON_RTD,,}" == "true" ]] && ACTIVE_ADDONS+="RTD "
 [[ "${ADDON_VSH,,}" == "true" ]] && ACTIVE_ADDONS+="VSH "
 [[ "${ADDON_WAR3SOURCE,,}" == "true" ]] && ACTIVE_ADDONS+="War3Source "
+[[ "${ADDON_ROUNDTIME,,}" == "true" ]] && ACTIVE_ADDONS+="RoundTime "
+[[ "${ADDON_MAPCONFIG,,}" == "true" ]] && ACTIVE_ADDONS+="MapConfig "
 if [[ -n "${ACTIVE_ADDONS}" ]]; then
     echo "  Addons:     ${ACTIVE_ADDONS}"
 else

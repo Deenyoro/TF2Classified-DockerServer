@@ -216,7 +216,7 @@ disable_tf2attributes() {
     fi
 
     # If no other addon needs TF2 Tools, clean up autoload
-    if [[ "${ADDON_VSH,,}" != "true" ]] && [[ "${ADDON_WAR3SOURCE,,}" != "true" ]]; then
+    if [[ "${ADDON_VSH,,}" != "true" ]] && [[ "${ADDON_WAR3SOURCE,,}" != "true" ]] && [[ "${ADDON_MAPCONFIG,,}" != "true" ]]; then
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"
         rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
         rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
@@ -743,7 +743,7 @@ disable_vsh() {
 
     # If no other addon needs TF2Items/TF2Tools, clean up
     # their autoload files to prevent unnecessary extension loading.
-    if [[ "${ADDON_TF2ATTRIBUTES,,}" != "true" ]] && [[ "${ADDON_WAR3SOURCE,,}" != "true" ]]; then
+    if [[ "${ADDON_TF2ATTRIBUTES,,}" != "true" ]] && [[ "${ADDON_WAR3SOURCE,,}" != "true" ]] && [[ "${ADDON_MAPCONFIG,,}" != "true" ]]; then
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"
         rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
         rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
@@ -948,6 +948,84 @@ STEAMSTUB
     log_info "War3Source installed"
 }
 
+# =========================================================================
+# Round-Time (sm_addtime / sm_settime)
+# =========================================================================
+install_roundtime() {
+    if [[ -f "${ADDON_MARKERS}/roundtime" ]]; then
+        ensure_plugin_active "Time.smx"
+        log_info "Round-Time already installed"
+        return 0
+    fi
+
+    log_step "Installing Round-Time..."
+
+    cache_download "${ROUNDTIME_URL}" "Time.smx" || return 1
+
+    cp "${ADDON_CACHE}/Time.smx" "${SM_PLUGINS}/Time.smx"
+
+    touch "${ADDON_MARKERS}/roundtime"
+    log_info "Round-Time installed"
+}
+
+disable_roundtime() {
+    ensure_plugin_disabled "Time.smx"
+}
+
+# =========================================================================
+# Map Config (YAMCP — per-map/prefix/gametype cfg execution)
+# =========================================================================
+install_mapconfig() {
+    # YAMCP includes <tf2> which requires the TF2 Tools game extension
+    patch_tf2tools_gamedata
+    link_tf2_game_extension
+
+    if [[ -f "${ADDON_MARKERS}/mapconfig" ]]; then
+        ensure_plugin_active "yamcp.smx"
+        log_info "Map Config already installed"
+        return 0
+    fi
+
+    log_step "Installing Map Config (YAMCP)..."
+
+    if [[ -f "${BUNDLED_DIR}/mapconfig/yamcp.smx" ]]; then
+        cp "${BUNDLED_DIR}/mapconfig/yamcp.smx" "${SM_PLUGINS}/yamcp.smx"
+    else
+        log_warn "  Bundled yamcp.smx not found — cannot install Map Config"
+        return 1
+    fi
+
+    # Create the mapconfig directory structure for users to populate
+    local mapconfig_dir="${GAME_DIR}/cfg/mapconfig"
+    mkdir -p "${mapconfig_dir}/gametype" "${mapconfig_dir}/maps"
+
+    # Create a default all.cfg if it doesn't exist
+    if [[ ! -f "${mapconfig_dir}/all.cfg" ]]; then
+        cat > "${mapconfig_dir}/all.cfg" << 'ALLCFG'
+// Map Config — all.cfg
+// This file is executed on every map change.
+// Add commands that should apply to all maps here.
+ALLCFG
+    fi
+
+    touch "${ADDON_MARKERS}/mapconfig"
+    log_info "Map Config installed (edit cfg/mapconfig/ to configure)"
+}
+
+disable_mapconfig() {
+    ensure_plugin_disabled "yamcp.smx"
+
+    # If no other addon needs TF2 Tools, clean up
+    if [[ "${ADDON_VSH,,}" != "true" ]] && [[ "${ADDON_TF2ATTRIBUTES,,}" != "true" ]] && [[ "${ADDON_WAR3SOURCE,,}" != "true" ]]; then
+        rm -f "${SM_DIR}/extensions/game.tf2.autoload"
+        rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
+        rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
+    fi
+}
+
+# =========================================================================
+# War3Source (Warcraft 3: Source)
+# =========================================================================
 disable_war3source() {
     # War3Source uses a plugins subdirectory
     if [[ -d "${SM_PLUGINS}/war3source" ]]; then
@@ -960,7 +1038,7 @@ disable_war3source() {
     fi
 
     # If no other addon needs TF2 Tools, clean up autoload
-    if [[ "${ADDON_VSH,,}" != "true" ]] && [[ "${ADDON_TF2ATTRIBUTES,,}" != "true" ]]; then
+    if [[ "${ADDON_VSH,,}" != "true" ]] && [[ "${ADDON_TF2ATTRIBUTES,,}" != "true" ]] && [[ "${ADDON_MAPCONFIG,,}" != "true" ]]; then
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"
         rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
         rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
@@ -973,7 +1051,7 @@ disable_war3source() {
 
 # Check if ANY addon is enabled
 any_enabled=false
-for var in ADDON_TF2ATTRIBUTES ADDON_MAPCHOOSER_EXTENDED ADDON_NATIVEVOTES ADDON_ADVERTISEMENTS ADDON_RTD ADDON_VSH ADDON_WAR3SOURCE; do
+for var in ADDON_TF2ATTRIBUTES ADDON_MAPCHOOSER_EXTENDED ADDON_NATIVEVOTES ADDON_ADVERTISEMENTS ADDON_RTD ADDON_VSH ADDON_WAR3SOURCE ADDON_ROUNDTIME ADDON_MAPCONFIG; do
     if [[ "${!var,,}" == "true" ]]; then
         any_enabled=true
         break
@@ -991,6 +1069,8 @@ if ! ${any_enabled}; then
         disable_rtd
         disable_vsh
         disable_war3source
+        disable_roundtime
+        disable_mapconfig
     fi
     exit 0
 fi
@@ -1002,7 +1082,7 @@ validate_tf2c_gamedata
 
 # Patch TF2 Tools gamedata and install patched extension for TF2C compatibility
 # Re-applied every boot since SM's auto-updater may overwrite sm-tf2.games.txt
-if [[ "${ADDON_VSH,,}" == "true" ]] || [[ "${ADDON_TF2ATTRIBUTES,,}" == "true" ]] || [[ "${ADDON_WAR3SOURCE,,}" == "true" ]]; then
+if [[ "${ADDON_VSH,,}" == "true" ]] || [[ "${ADDON_TF2ATTRIBUTES,,}" == "true" ]] || [[ "${ADDON_WAR3SOURCE,,}" == "true" ]] || [[ "${ADDON_MAPCONFIG,,}" == "true" ]]; then
     patch_tf2tools_gamedata
     link_tf2_game_extension
 fi
@@ -1070,10 +1150,24 @@ else
     disable_war3source
 fi
 
+# --- Round-Time ---
+if [[ "${ADDON_ROUNDTIME,,}" == "true" ]]; then
+    install_roundtime || log_warn "Round-Time installation failed — skipping"
+else
+    disable_roundtime
+fi
+
+# --- Map Config ---
+if [[ "${ADDON_MAPCONFIG,,}" == "true" ]]; then
+    install_mapconfig || log_warn "Map Config installation failed — skipping"
+else
+    disable_mapconfig
+fi
+
 # --- Summary ---
 echo ""
 log_info "Addon status:"
-for addon in TF2ATTRIBUTES MAPCHOOSER_EXTENDED NATIVEVOTES ADVERTISEMENTS RTD VSH WAR3SOURCE; do
+for addon in TF2ATTRIBUTES MAPCHOOSER_EXTENDED NATIVEVOTES ADVERTISEMENTS RTD VSH WAR3SOURCE ROUNDTIME MAPCONFIG; do
     var="ADDON_${addon}"
     if [[ "${!var,,}" == "true" ]]; then
         echo -e "  ${GREEN}ON${NC}   ${addon}"

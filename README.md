@@ -5,7 +5,7 @@ Dockerized TF2 Classified dedicated server. Edit `.env`, run `docker compose up 
 - IP hidden by default via Steam Datagram Relay
 - Auto-updates TF2 base and TF2 Classified while running
 - MetaMod:Source, SourceMod, and SMJansson pre-installed
-- 7 optional addons (VSH, War3Source, RTD, MapChooser Extended, and more)
+- 9 optional addons (VSH, War3Source, RTD, MapChooser Extended, and more)
 - Multi-server support with shared game files (~22GB installs once)
 - Per-server addon configs — run a VSH server, a War3Source server, and a vanilla server side by side
 - FastDL auto-compression on startup
@@ -194,6 +194,8 @@ Set any of these to `true` in `.env` to enable:
 | `ADDON_TF2ATTRIBUTES=true` | Custom weapon attributes framework. Note: limited on TF2C (see [TF2C compatibility](#tf2-classified-compatibility)). |
 | `ADDON_VSH=true` | Versus Saxton Hale — boss vs. mercenaries arena mode. Needs `vsh_` prefixed maps in `data/maps/`. |
 | `ADDON_WAR3SOURCE=true` | Warcraft 3: Source RPG mod — races, leveling, skills, and shops. Compiled automatically on first boot (~80s). |
+| `ADDON_ROUNDTIME=true` | Control round time, setup time, capture time bonuses. Admin commands `sm_addtime` / `sm_settime`. |
+| `ADDON_MAPCONFIG=true` | Execute different cfg files per map, prefix, or gametype. Edit `cfg/mapconfig/` to configure. |
 
 ### Addon dependencies
 
@@ -202,6 +204,7 @@ Dependencies are installed and cleaned up automatically:
 - **VSH** installs: TF2Items extension, TF2 Tools extension (patched for TF2C)
 - **War3Source** installs: TF2 Tools extension (patched for TF2C), TF2Items extension
 - **tf2attributes** installs: TF2 Tools extension (patched for TF2C)
+- **Map Config** installs: TF2 Tools extension (patched for TF2C)
 
 When you disable an addon, shared dependencies are only removed once **all** addons that need them are disabled.
 
@@ -383,4 +386,6 @@ docker compose exec tf2classified tmux attach -t srcds
 - VSH: https://github.com/redsunservers/VSH
 - MapChooser Extended: https://github.com/fafa-junhe/MapChooser-Extended
 - NativeVotes: https://github.com/sapphonie/SM-NativeVotes
+- Round-Time: https://github.com/KatsuteTF/Round-Time
+- Map Config (YAMCP): https://github.com/nosoop/SM-YetAnotherMapConfigPlugin
 - TF2Attributes: https://github.com/FlaminSarge/tf2attributes
