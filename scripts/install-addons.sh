@@ -645,6 +645,12 @@ link_tf2_game_extension() {
             chmod 755 "${dst}"
             log_info "  Installed patched TF2 Tools game extension for TF2C"
         fi
+        # Replace stock TF2 extension with our patched binary. SM's autoload
+        # resolves "game.tf2.ext" → game.tf2.ext.2.tf2.so first. The stock
+        # version fails the gamedir check on TF2C, so we overwrite it with
+        # the patched binary that has the check bypassed.
+        cp -f "${patched}" "${ext_dir}/x64/game.tf2.ext.2.tf2.so"
+        chmod 755 "${ext_dir}/x64/game.tf2.ext.2.tf2.so"
     fi
 
     local dst="${ext_dir}/game.tf2.ext.2.tf2classified.so"
@@ -654,6 +660,8 @@ link_tf2_game_extension() {
         cp "${patched}" "${dst}"
         chmod 755 "${dst}"
     fi
+    cp -f "${patched}" "${ext_dir}/game.tf2.ext.2.tf2.so"
+    chmod 755 "${ext_dir}/game.tf2.ext.2.tf2.so"
 
     # Ensure autoload marker exists on every boot (may be removed by disable)
     touch "${ext_dir}/game.tf2.autoload"

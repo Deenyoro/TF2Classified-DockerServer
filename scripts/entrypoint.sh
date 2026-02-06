@@ -482,6 +482,24 @@ echo ""
 echo "============================================"
 echo ""
 
+# Symlink 64-bit steamclient.so into the Steam SDK directory.
+# srcds_linux64 searches /home/srcds/.steam/sdk64/ for steamclient.so.
+# Without it, Steam networking fails and the server runs in LAN-only mode.
+STEAM_SDK64="/home/srcds/.steam/sdk64"
+mkdir -p "${STEAM_SDK64}"
+if [[ ! -f "${STEAM_SDK64}/steamclient.so" ]]; then
+    for candidate in \
+        "${CLASSIFIED_DIR}/bin/linux64/steamclient.so" \
+        "${TF2_DIR}/bin/linux64/steamclient.so" \
+        "/opt/steamcmd/linux64/steamclient.so"; do
+        if [[ -f "${candidate}" ]]; then
+            ln -sf "${candidate}" "${STEAM_SDK64}/steamclient.so"
+            log_info "Linked 64-bit steamclient.so from ${candidate}"
+            break
+        fi
+    done
+fi
+
 cd "${CLASSIFIED_DIR}"
 export LD_LIBRARY_PATH=".:bin/linux64:${LD_LIBRARY_PATH:-}"
 export AUTO_UPDATE_INTERVAL
