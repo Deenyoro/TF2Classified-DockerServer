@@ -210,10 +210,7 @@ install_tf2attributes() {
 }
 
 disable_tf2attributes() {
-    # Don't disable tf2attributes if War3Source still needs it
-    if [[ "${ADDON_WAR3SOURCE,,}" != "true" ]]; then
-        ensure_plugin_disabled "tf2attributes.smx"
-    fi
+    ensure_plugin_disabled "tf2attributes.smx"
 
     # If no other addon needs TF2 Tools, clean up autoload
     if [[ "${ADDON_VSH,,}" != "true" ]] && [[ "${ADDON_WAR3SOURCE,,}" != "true" ]] && [[ "${ADDON_MAPCONFIG,,}" != "true" ]]; then
@@ -650,7 +647,7 @@ patch_tf2tools_gamedata() {
     [[ -f "${gamedata_file}" ]] || return 0
     [[ -f "${patch_file}" ]] || return 0
 
-    # Always re-patch — the SM auto-updater may have overwritten the file
+    # Re-patch if SM auto-updater overwrote the file (skip if already patched)
     if grep -q '"tf2classified"' "${gamedata_file}" 2>/dev/null; then
         return 0
     fi
@@ -757,8 +754,13 @@ disable_vsh() {
 install_war3source() {
     if [[ -f "${ADDON_MARKERS}/war3source" ]]; then
         # Re-enable plugins if they were disabled
-        if [[ -d "${SM_DISABLED}/war3source" ]] && [[ ! -d "${SM_PLUGINS}/war3source" ]]; then
-            mv "${SM_DISABLED}/war3source" "${SM_PLUGINS}/war3source"
+        if [[ -d "${SM_DISABLED}/war3source" ]]; then
+            mkdir -p "${SM_PLUGINS}/war3source"
+            for smx in "${SM_DISABLED}/war3source/"*.smx; do
+                [[ -f "$smx" ]] || continue
+                mv "$smx" "${SM_PLUGINS}/war3source/" 2>/dev/null || true
+            done
+            rmdir "${SM_DISABLED}/war3source" 2>/dev/null || true
         fi
         log_info "War3Source already installed"
         return 0
