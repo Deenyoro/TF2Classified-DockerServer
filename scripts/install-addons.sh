@@ -221,6 +221,8 @@ disable_tf2attributes() {
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"
         rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
         rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
+        rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2.so"
+        rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2.so"
     fi
 }
 
@@ -781,6 +783,8 @@ disable_vsh() {
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"
         rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
         rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
+        rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2.so"
+        rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2.so"
         rm -f "${SM_DIR}/extensions/tf2items.autoload"
     fi
 }
@@ -849,7 +853,7 @@ install_war3source() {
 
         if [[ ! -f "${sm110_cache}/spcomp" ]]; then
             log_info "  Downloading SM 1.10 compiler for War3Source compilation..."
-            cache_download "${sm110_url}" "${sm110_archive}" || return 1
+            cache_download "${sm110_url}" "${sm110_archive}" || { rm -rf "${tmp}"; return 1; }
             mkdir -p "${sm110_cache}"
             # Extract only the scripting directory (compiler + includes)
             # Strip 3 components: addons/sourcemod/scripting/ → extract to cache root
@@ -1068,6 +1072,8 @@ disable_mapconfig() {
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"
         rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
         rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
+        rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2.so"
+        rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2.so"
     fi
 }
 
@@ -1090,6 +1096,8 @@ disable_war3source() {
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"
         rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2classified.so"
         rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2classified.so"
+        rm -f "${SM_DIR}/extensions/game.tf2.ext.2.tf2.so"
+        rm -f "${SM_DIR}/extensions/x64/game.tf2.ext.2.tf2.so"
     fi
 }
 

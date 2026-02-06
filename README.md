@@ -57,6 +57,8 @@ Everything is in `.env`. The important ones:
 | `SV_TAGS` | *(empty)* | Server browser tags |
 | `LOG_MAX_SIZE` | `10m` | Max Docker log file size per server |
 | `LOG_MAX_FILE` | `3` | Number of rotated log files to keep |
+| `EXTRA_ARGS` | *(empty)* | Extra srcds command-line arguments |
+| `FASTDL_PORT` | `8080` | Host port for self-hosted FastDL nginx |
 | `TMUX_REMAIN_ON_EXIT` | `false` | Keep tmux session after crash (for debugging) |
 | `ADDON_*` | `false` | Optional addons — see [Optional Addons](#optional-addons) |
 
@@ -252,6 +254,7 @@ All servers share game files (~22GB downloads once). Each server has its own con
 make add-server N=2    # creates dirs + .env.server2
 nano .env.server2      # change name, port, RCON, addons, etc.
 make start-server N=2
+make stop-server N=2
 make logs-server N=2
 ```
 

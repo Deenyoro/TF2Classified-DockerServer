@@ -42,6 +42,7 @@ services:
       # Writable outputs
       - ./data/logs:/data/logs
       - ./data/demos:/data/demos
+      - ./data/fastdl:/data/fastdl
 
     # Give srcds time to disconnect players and save state
     stop_grace_period: 30s
