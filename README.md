@@ -384,8 +384,11 @@ docker compose exec tf2classified tmux attach -t srcds
 - SMJansson (64-bit build): https://forums.alliedmods.net/showthread.php?t=184604&page=8
 - War3Source:EVO: https://github.com/War3Evo/War3Source-EVO
 - VSH: https://github.com/Chdata/Versus-Saxton-Hale
+- TF2Items: https://github.com/nosoop/SMExt-TF2Items
 - MapChooser Extended: https://github.com/Totenfluch/sourcemod-mapchooser-extended
 - NativeVotes: https://github.com/Heapons/sourcemod-nativevotes-updated
+- Advertisements: https://github.com/ErikMinekus/sm-advertisements
+- RTD: https://github.com/Phil25/RTD
 - Round-Time: https://github.com/KatsuteTF/Round-Time
 - Map Config (YAMCP): https://github.com/nosoop/SM-YetAnotherMapConfigPlugin
 - TF2Attributes: https://github.com/FlaminSarge/tf2attributes
