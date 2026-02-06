@@ -5,9 +5,11 @@ Dockerized TF2 Classified dedicated server. Edit `.env`, run `docker compose up 
 - IP hidden by default via Steam Datagram Relay
 - Auto-updates TF2 base and TF2 Classified while running
 - MetaMod:Source, SourceMod, and SMJansson pre-installed
+- 7 optional addons (VSH, War3Source, RTD, MapChooser Extended, and more)
 - Multi-server support with shared game files (~22GB installs once)
-- Configurable Docker logging per server
+- Per-server addon configs — run a VSH server, a War3Source server, and a vanilla server side by side
 - FastDL auto-compression on startup
+- Full interactive server console via tmux
 
 ## Quick Start
 
@@ -42,22 +44,23 @@ Everything is in `.env`. The important ones:
 | `RCON_PASSWORD` | `changeme` | Remote admin password. **Change this.** |
 | `START_MAP` | `ctf_2fort` | Map on boot |
 | `MAX_PLAYERS` | `24` | Up to 32 |
-| `SERVER_PORT` | `27015` | Game port |
+| `SERVER_PORT` | `27015` | Game port (UDP) |
 | `TICKRATE` | `66` | Server tickrate |
 | `STEAM_NETWORKING` | `true` | IP hiding via Valve relay |
-| `UPDATE_ON_START` | `true` | Run SteamCMD update on each start |
-| `AUTO_UPDATE` | `true` | Poll for updates while running |
-| `AUTO_UPDATE_MODE` | `immediate` | `immediate`, `graceful` (warn players), or `announce` (manual) |
+| `UPDATE_ON_START` | `false` | Run SteamCMD update on each start |
+| `AUTO_UPDATE` | `false` | Poll for updates while running |
+| `AUTO_UPDATE_MODE` | `immediate` | `immediate`, `graceful`, or `announce` — see [Auto-Updates](#auto-updates) |
 | `UPDATE_GRACE_PERIOD` | `60` | Seconds to wait in graceful mode |
 | `AUTO_UPDATE_INTERVAL` | `300` | Seconds between update checks |
 | `SERVER_CFG_MODE` | `auto` | `auto` = rebuild server.cfg from .env every boot. `custom` = you manage it |
 | `SM_ADMIN_STEAMID` | *(empty)* | Your Steam ID for SM admin |
 | `SV_TAGS` | *(empty)* | Server browser tags |
-| `LOG_MAX_SIZE` | `10m` | Max Docker log file size per server |
-| `LOG_MAX_FILE` | `3` | Number of rotated log files to keep |
+| `LOG_MAX_SIZE` | `50m` | Max Docker log file size per server |
+| `LOG_MAX_FILE` | `5` | Number of rotated log files to keep |
 | `TMUX_REMAIN_ON_EXIT` | `false` | Keep tmux session after crash (for debugging) |
+| `ADDON_*` | `false` | Optional addons — see [Optional Addons](#optional-addons) |
 
-Mod URLs (`MMS_URL`, `SM_URL`, `SMJANSSON_URL`) default to known-good 64-bit Linux builds. Set any to `skip` to disable. Set `INSTALL_MODS=false` to skip all of them.
+Mod URLs (`MMS_URL`, `SM_URL`) default to known-good 64-bit Linux builds. Set either to `skip` to disable installing that component. Set `INSTALL_MODS=false` to skip all mod installation.
 
 ## Auto-Updates
 
@@ -83,27 +86,7 @@ Each touch adds another `UPDATE_GRACE_PERIOD` seconds.
 
 **Announce mode** notifies players but doesn't auto-restart. Useful if you want to control exactly when restarts happen.
 
-Disable background polling entirely with `AUTO_UPDATE=false` — the server still updates on container restart.
-
-## Custom Map Downloads (FastDL)
-
-Source normally trickle-feeds map files through the game connection. FastDL tells clients to grab them over HTTP instead.
-
-Maps in `data/maps/` are automatically compressed to `data/fastdl/tf2classified/maps/` on container startup. You can also run it manually:
-
-```bash
-make compress-maps
-```
-
-Host the compressed files somewhere (Cloudflare R2 is free and works well, or use the included nginx with `docker compose --profile fastdl up -d`), then set `FASTDL_URL` in `.env` and restart.
-
-Your web root needs to mirror the game directory layout:
-
-```
-data/fastdl/tf2classified/maps/custom_map.bsp.bz2
-```
-
-Upload both `.bsp` and `.bsp.bz2` — clients try compressed first and fall back to raw.
+Disable background polling entirely with `AUTO_UPDATE=false` — the server still updates on container restart if `UPDATE_ON_START=true`.
 
 ## Custom Content
 
@@ -149,29 +132,122 @@ Common files to override:
 cp myplugin.smx data/addons/sourcemod/plugins/
 ```
 
+They get loaded on next server start or map change.
+
 ### SM Admin
 
-Set `SM_ADMIN_STEAMID=STEAM_0:1:12345678` in `.env` ([steamid.io](https://steamid.io)).
+Set `SM_ADMIN_STEAMID=STEAM_0:1:12345678` in `.env` ([steamid.io](https://steamid.io)). Multiple admins: comma-separated.
 
-### Per-Server Content
+```
+SM_ADMIN_STEAMID=STEAM_0:1:12345678,STEAM_0:0:87654321
+```
 
-For multi-server setups, each server has its own content directory:
+## Custom Map Downloads (FastDL)
 
-| Server | Configs | Addons | Maps |
-|--------|---------|--------|------|
-| Primary | `data/cfg/` | `data/addons/` | `data/maps/` |
-| Server 2 | `servers/2/cfg/` | `servers/2/addons/` | `servers/2/maps/` |
-| Server 3 | `servers/3/cfg/` | `servers/3/addons/` | `servers/3/maps/` |
+Source normally trickle-feeds map files through the game connection. FastDL tells clients to grab them over HTTP instead — much faster.
 
-This lets you run different configs, plugins, or maps per server.
+Maps in `data/maps/` are automatically compressed to `data/fastdl/tf2classified/maps/` on container startup. You can also run it manually:
+
+```bash
+make compress-maps
+```
+
+### Hosting options
+
+**Self-hosted (included nginx):**
+
+```bash
+docker compose --profile fastdl up -d
+# Then set in .env:
+FASTDL_URL=http://your-ip:8080/tf2classified
+```
+
+**Cloudflare R2 (free 10GB, global CDN):**
+
+```bash
+# Configure R2 credentials in .env, then:
+make upload-maps
+# Set FASTDL_URL to your R2 public bucket URL
+```
+
+**Any HTTP server** (S3, Backblaze B2, your own VPS, etc.) — just mirror the game directory layout:
+
+```
+<FASTDL_URL>/maps/custom_map.bsp.bz2
+<FASTDL_URL>/maps/custom_map.bsp
+```
+
+Clients try compressed (`.bsp.bz2`) first and fall back to raw (`.bsp`).
+
+## Optional Addons
+
+All addons are **disabled by default** and must be explicitly enabled in `.env`. Enabling an addon will never break an existing server — they only activate when you opt in. Updating your container image will not enable any addons you haven't turned on.
+
+Set any of these to `true` in `.env` to enable:
+
+| Variable | What it does |
+|----------|-------------|
+| `ADDON_MAPCHOOSER_EXTENDED=true` | End-of-map voting with nominations and rock-the-vote. Replaces stock mapchooser. |
+| `ADDON_NATIVEVOTES=true` | Native TF2 vote UI instead of SourceMod's generic menu. Works standalone or with MCE. |
+| `ADDON_ADVERTISEMENTS=true` | Rotating server messages in chat. Configure in `data/addons/sourcemod/configs/advertisements.txt`. |
+| `ADDON_RTD=true` | Roll The Dice — `!rtd` gives random temporary effects. Ships a TF2C-compatible build. |
+| `ADDON_TF2ATTRIBUTES=true` | Custom weapon attributes framework. Note: limited on TF2C (see [TF2C compatibility](#tf2-classified-compatibility)). |
+| `ADDON_VSH=true` | Versus Saxton Hale — boss vs. mercenaries arena mode. Needs `vsh_` prefixed maps in `data/maps/`. |
+| `ADDON_WAR3SOURCE=true` | Warcraft 3: Source RPG mod — races, leveling, skills, and shops. Compiled automatically on first boot (~80s). |
+
+### Addon dependencies
+
+Dependencies are installed and cleaned up automatically:
+
+- **VSH** installs: TF2Items extension, TF2 Tools extension (patched for TF2C)
+- **War3Source** installs: TF2 Tools extension (patched for TF2C), TF2Items extension
+- **tf2attributes** installs: TF2 Tools extension (patched for TF2C)
+
+When you disable an addon, shared dependencies are only removed once **all** addons that need them are disabled.
+
+### Mix and match across servers
+
+Each server in a multi-server setup gets its own `.env` file with independent addon settings:
+
+```bash
+# .env — vanilla server
+ADDON_VSH=false
+ADDON_WAR3SOURCE=false
+
+# .env.server2 — VSH server
+ADDON_VSH=true
+SERVER_PORT=27016
+
+# .env.server3 — War3Source server
+ADDON_WAR3SOURCE=true
+SERVER_PORT=27017
+
+# .env.server4 — RTD + MapChooser
+ADDON_RTD=true
+ADDON_MAPCHOOSER_EXTENDED=true
+SERVER_PORT=27018
+```
+
+All servers share the same ~22GB game files.
+
+### TF2 Classified compatibility
+
+TF2 Classified is not stock TF2. Several SourceMod extensions assume the game directory is `tf` and fail on TF2C's `tf2classified` directory. This project handles the differences:
+
+- **Patched TF2 Tools extension** — binary-patched to bypass the hardcoded game directory check
+- **TF2C gamedata files** — symbol-based signatures (`linux64` keys) and vtable offsets for TF2C's 64-bit server binary
+- **Boot-time validation** — verifies that critical symbols still exist in the TF2C binary after game updates
+- **Auto-repair** — gamedata patches and extension integrity are re-verified on every container restart, surviving SourceMod's auto-updater
+- **War3Source compilation fixes** — SteamTools stubs (no 64-bit build exists), include path ordering for SM 1.10 compiler compatibility
+- **tf2attributes limitation** — TF2C does not have TF2's item economy system (`CEconItemSchema`, `CAttributeList`). The tf2attributes plugin will install but cannot function until TF2C adds economy support. War3Source and VSH work fine without it.
 
 ## Running Multiple Servers
 
-All servers share game files (~22GB downloads once). Each server has its own config, logs, and port.
+All servers share game files (~22GB downloads once). Each server has its own config, addons, logs, and port.
 
 ```bash
 make add-server N=2    # creates dirs + .env.server2
-nano .env.server2      # change name, port, RCON, etc.
+nano .env.server2      # change name, port, RCON, addons, etc.
 make start-server N=2
 make logs-server N=2
 ```
@@ -252,13 +328,13 @@ docker compose build --no-cache && docker compose up -d   # full rebuild
 
 ## What Gets Installed
 
-The image is just Debian + SteamCMD + runtime libs (~500MB). Game files go into Docker volumes on first boot:
+The image is Debian + SteamCMD + runtime libs (~500MB). Game files go into Docker volumes on first boot:
 
 - **AppID 232250** — TF2 Dedicated Server (~15GB)
 - **AppID 3557020** — TF2 Classified (~7GB)
 - **MetaMod:Source 2.0** build 1384 (TF2C needs >= 1380)
 - **SourceMod 1.13** build 7293 (includes TF2C gamedata)
-- **SMJansson 2.6.1** 64-bit (JSON extension for plugins)
+- **SMJansson** 64-bit (JSON extension for plugins — [64-bit build by bottiger](https://forums.alliedmods.net/showthread.php?t=184604&page=8), upstream [srcdslab/sm-ext-SMJansson](https://github.com/srcdslab/sm-ext-SMJansson) only ships 32-bit)
 
 These install once on first boot. Delete the `classified-data` volume to force a reinstall.
 
@@ -282,13 +358,18 @@ docker compose exec tf2classified cat /data/classified/tf2classified/addons/meta
 
 **Disk space:** You need at least 25GB free for the initial download.
 
+**Addon not loading:** Check the SourceMod error logs:
+```bash
+docker compose exec tf2classified cat /data/classified/tf2classified/addons/sourcemod/logs/errors_$(date +%Y%m%d).log
+```
+
+**War3Source takes a long time on first boot:** Normal — it compiles ~36 plugins from source on first start (~80 seconds). Subsequent boots use a compiled cache and start instantly.
+
 **Server crashes with no logs:** Enable `TMUX_REMAIN_ON_EXIT=true` in `.env` to keep the tmux session alive after srcds crashes. Then attach to see the last output:
 
 ```bash
 docker compose exec tf2classified tmux attach -t srcds
 ```
-
-This helps debug crashes that don't write to log files.
 
 ## Links
 
@@ -296,4 +377,10 @@ This helps debug crashes that don't write to log files.
 - TF2C on Steam: https://store.steampowered.com/app/3545060
 - SourceMod: https://www.sourcemod.net
 - MetaMod:Source: https://www.metamodsource.net
-- SMJansson: https://github.com/srcdslab/sm-ext-SMJansson
+- SMJansson (source): https://github.com/srcdslab/sm-ext-SMJansson
+- SMJansson (64-bit build): https://forums.alliedmods.net/showthread.php?t=184604&page=8
+- War3Source:EVO: https://github.com/AshesToAshes2/War3Source-EVO
+- VSH: https://github.com/redsunservers/VSH
+- MapChooser Extended: https://github.com/fafa-junhe/MapChooser-Extended
+- NativeVotes: https://github.com/sapphonie/SM-NativeVotes
+- TF2Attributes: https://github.com/FlaminSarge/tf2attributes

@@ -1,0 +1,11 @@
+	/* TF2 Classified — TF2Items gamedata */
+	"tf2classified"
+	{
+		"Offsets"
+		{
+			"GiveNamedItem"
+			{
+				"linux64"	"543"
+			}
+		}
+	}

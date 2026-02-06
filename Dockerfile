@@ -49,6 +49,9 @@ RUN mkdir -p /data/tf /data/classified /data/cfg /data/addons /data/maps /data/l
 COPY --chown=srcds:srcds scripts/ /opt/scripts/
 RUN chmod +x /opt/scripts/*.sh
 
+# Bundled addon files (custom TF2C-compatible builds, default configs)
+COPY --chown=srcds:srcds addons-bundled/ /opt/addons-bundled/
+
 USER srcds
 WORKDIR /home/srcds
 

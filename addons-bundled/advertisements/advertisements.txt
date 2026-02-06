@@ -1,0 +1,19 @@
+// Default Advertisements configuration for TF2 Classified
+// Edit this file at: data/addons/sourcemod/configs/advertisements.txt
+//
+// Types: "chat", "center", "hint", "menu", "top"
+// Variables: {hostname}, {currentmap}, {nextmap}, {timeleft}
+// Colors (chat only): {green}, {lightgreen}, {default}, {red}, {blue}
+// Flags: limit which players see the ad (e.g., "b" = reservation only)
+
+"Advertisements"
+{
+	"1"
+	{
+		"chat"		"{green}Welcome to {default}{hostname}{green}!"
+	}
+	"2"
+	{
+		"chat"		"{green}Map: {default}{currentmap} {green}| Time left: {default}{timeleft}"
+	}
+}

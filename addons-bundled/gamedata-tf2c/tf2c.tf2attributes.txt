@@ -1,0 +1,119 @@
+	/* TF2 Classified — tf2attributes gamedata */
+	"tf2classified"
+	{
+		"Offsets"
+		{
+			"CAttributeManager::OnAttributeValuesChanged"
+			{
+				"linux64"	"14"
+			}
+			"ISchemaAttributeTypeBase::BConvertStringToEconAttributeValue"
+			{
+				"linux64"	"5"
+			}
+			"ISchemaAttributeTypeBase::InitializeNewEconAttributeValue"
+			{
+				"linux64"	"8"
+			}
+			"ISchemaAttributeTypeBase::UnloadEconAttributeValue"
+			{
+				"linux64"	"9"
+			}
+			"ISchemaAttributeTypeBase::BSupportsGame..."
+			{
+				"linux64"	"11"
+			}
+			"CEconItemView::GetItemDefinition"
+			{
+				"linux64"	"7"
+			}
+		}
+		"Signatures"
+		{
+			"CEconItemSchema::GetItemDefinition"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN15CEconItemSchema17GetItemDefinitionEi"
+			}
+			"CEconItemView::GetSOCData"
+			{
+				"library"			"server"
+				"linux64"			"@_ZNK13CEconItemView10GetSOCDataEv"
+			}
+			"CEconItem::SetCustomName"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN9CEconItem13SetCustomNameEPKc"
+			}
+			"GEconItemSchema"
+			{
+				"library"			"server"
+				"linux64"			"@_Z15GEconItemSchemav"
+			}
+			"CEconItemSchema::GetAttributeDefinition"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN15CEconItemSchema22GetAttributeDefinitionEi"
+			}
+			"CEconItemSchema::GetAttributeDefinitionByName"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN15CEconItemSchema28GetAttributeDefinitionByNameEPKc"
+			}
+			"CAttributeList::RemoveAttribute"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN14CAttributeList15RemoveAttributeEPK28CEconItemAttributeDefinition"
+			}
+			"CAttributeList::SetRuntimeAttributeValue"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN14CAttributeList24SetRuntimeAttributeValueEPK28CEconItemAttributeDefinitionf"
+			}
+			"CAttributeList::GetAttributeByID"
+			{
+				"library"			"server"
+				"linux64"			"@_ZNK14CAttributeList16GetAttributeByIDEi"
+			}
+			"CAttributeList::DestroyAllAttributes"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN14CAttributeList20DestroyAllAttributesEv"
+			}
+			"CAttributeManager::ClearCache"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN17CAttributeManager10ClearCacheEv"
+			}
+			"CAttributeManager::AttribHookValue<float>"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN17CAttributeManager15AttribHookValueIfEET_S1_PKcPK11CBaseEntityP10CUtlVectorIPS4_10CUtlMemoryIS8_iEEb"
+			}
+			"CAttributeManager::AttribHookValue<int>"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN17CAttributeManager15AttribHookValueIiEET_S1_PKcPK11CBaseEntityP10CUtlVectorIPS4_10CUtlMemoryIS8_iEEb"
+			}
+			"CAttributeManager::ApplyAttributeStringWrapper"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN17CAttributeManager27ApplyAttributeStringWrapperE8string_tP11CBaseEntityS0_P10CUtlVectorIS2_10CUtlMemoryIS2_iEE"
+			}
+			"CTFPlayer::AddCustomAttribute"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN9CTFPlayer18AddCustomAttributeEPKcff"
+			}
+			"CTFPlayer::RemoveCustomAttribute"
+			{
+				"library"			"server"
+				"linux64"			"@_ZN9CTFPlayer21RemoveCustomAttributeEPKc"
+			}
+			"CopyStringAttributeValueToCharPointerOutput"
+			{
+				"library"			"server"
+				"linux64"			"@_Z43CopyStringAttributeValueToCharPointerOutputPK17CAttribute_StringPPKc"
+			}
+		}
+	}

@@ -64,8 +64,27 @@ echo ""
 # Mod download URLs — override in .env to pin versions, set to "skip" to disable
 : "${MMS_URL:=https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1384-linux.tar.gz}"
 : "${SM_URL:=https://sm.alliedmods.net/smdrop/1.13/sourcemod-1.13.0-git7293-linux.tar.gz}"
-: "${SMJANSSON_URL:=https://github.com/srcdslab/sm-ext-SMJansson/releases/download/2.6.1/sm-ext-SMJansson-2.6.1-linux.tar.gz}"
+# SMJansson 64-bit is bundled in the image (upstream only ships 32-bit)
 : "${INSTALL_MODS:=true}"
+
+# Optional addons — set to "true" to enable (all disabled by default)
+: "${ADDON_TF2ATTRIBUTES:=false}"
+: "${ADDON_MAPCHOOSER_EXTENDED:=false}"
+: "${ADDON_NATIVEVOTES:=false}"
+: "${ADDON_ADVERTISEMENTS:=false}"
+: "${ADDON_RTD:=false}"
+: "${ADDON_VSH:=false}"
+: "${ADDON_WAR3SOURCE:=false}"
+
+# Addon download URLs — override to pin versions
+: "${TF2ATTR_URL:=https://github.com/FlaminSarge/tf2attributes/releases/download/v1.7.5}"
+: "${MCE_URL:=https://github.com/Totenfluch/sourcemod-mapchooser-extended/archive/refs/heads/master.tar.gz}"
+: "${NATIVEVOTES_URL:=https://github.com/Heapons/sourcemod-nativevotes-updated/releases/download/workflow-build37/nativevotes_sm_1.13.zip}"
+: "${ADVERTISEMENTS_URL:=https://github.com/ErikMinekus/sm-advertisements/releases/download/2.1.2/advertisements.zip}"
+: "${RTD_URL:=https://github.com/Phil25/RTD/releases/download/2.5.5/rtd-2.5.5.zip}"
+: "${VSH_URL:=https://github.com/Chdata/Versus-Saxton-Hale/archive/refs/heads/master.tar.gz}"
+: "${TF2ITEMS_URL:=https://github.com/nosoop/SMExt-TF2Items/releases/download/r13-main/package.tar.gz}"
+: "${WAR3SOURCE_URL:=https://github.com/War3Evo/War3Source-EVO/archive/refs/heads/master.tar.gz}"
 
 STEAMCMD="${STEAMCMD_DIR}/steamcmd.sh"
 
@@ -233,11 +252,33 @@ VDFEOF
         log_info "SourceMod already present, skipping"
     fi
 
-    if [[ -d "${GAME_DIR}/addons/sourcemod" ]] && \
-       [[ ! -f "${GAME_DIR}/addons/sourcemod/extensions/smjansson.ext.so" ]]; then
-        install_tarball "${SMJANSSON_URL}" "SMJansson" "${GAME_DIR}"
+    # SMJansson: install bundled 64-bit build (upstream only ships 32-bit)
+    if [[ -d "${GAME_DIR}/addons/sourcemod" ]]; then
+        SMJ_SRC="/opt/addons-bundled/smjansson/smjansson.ext.so"
+        SMJ_DST="${GAME_DIR}/addons/sourcemod/extensions/x64/smjansson.ext.so"
+        if [[ -f "${SMJ_SRC}" ]]; then
+            # Remove stale 32-bit copy from extensions root if present
+            rm -f "${GAME_DIR}/addons/sourcemod/extensions/smjansson.ext.so"
+            mkdir -p "${GAME_DIR}/addons/sourcemod/extensions/x64"
+            if [[ ! -f "${SMJ_DST}" ]]; then
+                cp "${SMJ_SRC}" "${SMJ_DST}"
+                chmod 755 "${SMJ_DST}"
+                log_info "Installed SMJansson (64-bit)"
+            fi
+            # Autoload marker must exist in extensions root for SM to load it
+            touch "${GAME_DIR}/addons/sourcemod/extensions/smjansson.autoload"
+        fi
     fi
 fi
+
+# ---------------------------------------------------------------------------
+# 2b. Install optional addons (if any are enabled)
+# ---------------------------------------------------------------------------
+export ADDON_TF2ATTRIBUTES ADDON_MAPCHOOSER_EXTENDED ADDON_NATIVEVOTES
+export ADDON_ADVERTISEMENTS ADDON_RTD ADDON_VSH ADDON_WAR3SOURCE
+export TF2ATTR_URL MCE_URL NATIVEVOTES_URL ADVERTISEMENTS_URL RTD_URL
+export VSH_URL TF2ITEMS_URL WAR3SOURCE_URL
+/opt/scripts/install-addons.sh "${GAME_DIR}"
 
 # ---------------------------------------------------------------------------
 # 3. Link user content from /data bind mounts
@@ -416,6 +457,21 @@ echo "  SDR:        $([ "${STEAM_NET_CVAR}" = "1" ] && echo "on (IP hidden)" || 
 echo "  Config:     ${SERVER_CFG_MODE}"
 [[ -n "${FASTDL_URL}" ]] && echo "  FastDL:     ${FASTDL_URL}"
 echo "  Auto-update: $([ "${AUTO_UPDATE_CVAR}" = "1" ] && echo "on (every ${AUTO_UPDATE_INTERVAL}s)" || echo "off")"
+
+# Show enabled addons
+ACTIVE_ADDONS=""
+[[ "${ADDON_TF2ATTRIBUTES,,}" == "true" ]] && ACTIVE_ADDONS+="tf2attributes "
+[[ "${ADDON_MAPCHOOSER_EXTENDED,,}" == "true" ]] && ACTIVE_ADDONS+="MCE "
+[[ "${ADDON_NATIVEVOTES,,}" == "true" ]] && ACTIVE_ADDONS+="NativeVotes "
+[[ "${ADDON_ADVERTISEMENTS,,}" == "true" ]] && ACTIVE_ADDONS+="Ads "
+[[ "${ADDON_RTD,,}" == "true" ]] && ACTIVE_ADDONS+="RTD "
+[[ "${ADDON_VSH,,}" == "true" ]] && ACTIVE_ADDONS+="VSH "
+[[ "${ADDON_WAR3SOURCE,,}" == "true" ]] && ACTIVE_ADDONS+="War3Source "
+if [[ -n "${ACTIVE_ADDONS}" ]]; then
+    echo "  Addons:     ${ACTIVE_ADDONS}"
+else
+    echo "  Addons:     none"
+fi
 echo ""
 echo "============================================"
 echo ""

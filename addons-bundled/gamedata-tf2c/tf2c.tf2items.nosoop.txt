@@ -1,0 +1,19 @@
+	/* TF2 Classified — TF2Items nosoop gamedata */
+	"tf2classified"
+	{
+		"Offsets"
+		{
+			"GiveNamedItem"
+			{
+				"linux64"	"543"
+			}
+		}
+		"Signatures"
+		{
+			"GetLoadoutItem"
+			{
+				"library"		"server"
+				"linux64"		"@_ZN9CTFPlayer14GetLoadoutItemEiib"
+			}
+		}
+	}
