@@ -178,11 +178,15 @@ validate_tf2c_gamedata() {
 install_tf2attributes() {
     if [[ -f "${ADDON_MARKERS}/tf2attributes" ]]; then
         ensure_plugin_active "tf2attributes.smx"
-        # Re-patch gamedata if needed (survives SM updates)
-        patch_tf2c_gamedata "${SM_GAMEDATA}/tf2.attributes.txt" \
-            "${BUNDLED_DIR}/gamedata-tf2c/tf2c.tf2attributes.txt"
-        log_info "tf2attributes already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/tf2attributes.smx" ]]; then
+            # Re-patch gamedata if needed (survives SM updates)
+            patch_tf2c_gamedata "${SM_GAMEDATA}/tf2.attributes.txt" \
+                "${BUNDLED_DIR}/gamedata-tf2c/tf2c.tf2attributes.txt"
+            log_info "tf2attributes already installed"
+            return 0
+        fi
+        log_info "tf2attributes plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/tf2attributes"
     fi
 
     log_step "Installing tf2attributes..."
@@ -234,8 +238,12 @@ install_mapchooser_extended() {
         ensure_plugin_active "nominations_extended.smx"
         ensure_plugin_active "rockthevote_extended.smx"
         ensure_plugin_active "mapchooser_extended_sounds.smx"
-        log_info "MapChooser Extended already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/mapchooser_extended.smx" ]]; then
+            log_info "MapChooser Extended already installed"
+            return 0
+        fi
+        log_info "MapChooser Extended plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/mapchooser_extended"
     fi
 
     log_step "Installing MapChooser Extended..."
@@ -326,8 +334,12 @@ install_nativevotes() {
             ensure_plugin_disabled "nativevotes_rockthevote.smx"
         fi
 
-        log_info "NativeVotes already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/nativevotes.smx" ]]; then
+            log_info "NativeVotes already installed"
+            return 0
+        fi
+        log_info "NativeVotes plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/nativevotes"
     fi
 
     log_step "Installing NativeVotes Updated..."
@@ -401,8 +413,12 @@ disable_nativevotes() {
 install_advertisements() {
     if [[ -f "${ADDON_MARKERS}/advertisements" ]]; then
         ensure_plugin_active "advertisements.smx"
-        log_info "Advertisements already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/advertisements.smx" ]]; then
+            log_info "Advertisements already installed"
+            return 0
+        fi
+        log_info "Advertisements plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/advertisements"
     fi
 
     log_step "Installing Advertisements..."
@@ -449,8 +465,12 @@ disable_advertisements() {
 install_rtd() {
     if [[ -f "${ADDON_MARKERS}/rtd" ]]; then
         ensure_plugin_active "rtd.smx"
-        log_info "Roll The Dice already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/rtd.smx" ]]; then
+            log_info "Roll The Dice already installed"
+            return 0
+        fi
+        log_info "RTD plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/rtd"
     fi
 
     log_step "Installing Roll The Dice (RTD)..."
@@ -519,14 +539,19 @@ disable_rtd() {
 # =========================================================================
 install_tf2items() {
     if [[ -f "${ADDON_MARKERS}/tf2items" ]]; then
-        # Re-patch gamedata if needed (survives SM updates)
-        patch_tf2c_gamedata "${SM_GAMEDATA}/tf2.items.txt" \
-            "${BUNDLED_DIR}/gamedata-tf2c/tf2c.tf2items.txt"
-        patch_tf2c_gamedata "${SM_GAMEDATA}/tf2.items.nosoop.txt" \
-            "${BUNDLED_DIR}/gamedata-tf2c/tf2c.tf2items.nosoop.txt"
-        # Ensure autoload exists (may have been cleaned up by disable)
-        touch "${SM_DIR}/extensions/tf2items.autoload"
-        return 0
+        # Verify extension binary exists
+        if ls "${SM_DIR}/extensions/x64/"*tf2items* &>/dev/null; then
+            # Re-patch gamedata if needed (survives SM updates)
+            patch_tf2c_gamedata "${SM_GAMEDATA}/tf2.items.txt" \
+                "${BUNDLED_DIR}/gamedata-tf2c/tf2c.tf2items.txt"
+            patch_tf2c_gamedata "${SM_GAMEDATA}/tf2.items.nosoop.txt" \
+                "${BUNDLED_DIR}/gamedata-tf2c/tf2c.tf2items.nosoop.txt"
+            # Ensure autoload exists (may have been cleaned up by disable)
+            touch "${SM_DIR}/extensions/tf2items.autoload"
+            return 0
+        fi
+        log_info "TF2Items extension missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/tf2items"
     fi
 
     log_info "  Installing TF2Items extension..."
@@ -672,8 +697,12 @@ install_vsh() {
 
     if [[ -f "${ADDON_MARKERS}/vsh" ]]; then
         ensure_plugin_active "saxtonhale.smx"
-        log_info "VSH already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/saxtonhale.smx" ]]; then
+            log_info "VSH already installed"
+            return 0
+        fi
+        log_info "VSH plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/vsh"
     fi
 
     log_step "Installing Versus Saxton Hale..."
@@ -762,8 +791,13 @@ install_war3source() {
             done
             rmdir "${SM_DISABLED}/war3source" 2>/dev/null || true
         fi
-        log_info "War3Source already installed"
-        return 0
+        # Verify plugins actually exist (compiled cache or disabled dir)
+        if [[ -d "${SM_PLUGINS}/war3source" ]] && ls "${SM_PLUGINS}/war3source/"*.smx &>/dev/null; then
+            log_info "War3Source already installed"
+            return 0
+        fi
+        log_info "War3Source plugins missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/war3source"
     fi
 
     log_step "Installing War3Source (Warcraft 3)..."
@@ -956,8 +990,12 @@ STEAMSTUB
 install_roundtime() {
     if [[ -f "${ADDON_MARKERS}/roundtime" ]]; then
         ensure_plugin_active "Time.smx"
-        log_info "Round-Time already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/Time.smx" ]]; then
+            log_info "Round-Time already installed"
+            return 0
+        fi
+        log_info "Round-Time plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/roundtime"
     fi
 
     log_step "Installing Round-Time..."
@@ -980,8 +1018,12 @@ disable_roundtime() {
 install_mapconfig() {
     if [[ -f "${ADDON_MARKERS}/mapconfig" ]]; then
         ensure_plugin_active "yamcp.smx"
-        log_info "Map Config already installed"
-        return 0
+        if [[ -f "${SM_PLUGINS}/yamcp.smx" ]]; then
+            log_info "Map Config already installed"
+            return 0
+        fi
+        log_info "Map Config plugin missing — reinstalling..."
+        rm -f "${ADDON_MARKERS}/mapconfig"
     fi
 
     log_step "Installing Map Config (YAMCP)..."
