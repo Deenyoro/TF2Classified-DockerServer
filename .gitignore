@@ -27,6 +27,7 @@ servers/
 *.log
 docker-compose.override.yml
 docker-compose.override.yaml
+docker-compose.local.yml
 
 # OS files
 .DS_Store
