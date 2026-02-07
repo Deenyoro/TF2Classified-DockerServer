@@ -44,27 +44,29 @@ Route all game server traffic through a WireGuard tunnel to a remote firewall. Y
 
 ```bash
 # 1. Generate keys
-wg genkey | tee wireguard/privatekey | wg pubkey > wireguard/publickey
+wg genkey | tee privatekey | wg pubkey > publickey
 
-# 2. Create config from template
-cp wireguard/wg0.conf.example wireguard/wg0.conf
-nano wireguard/wg0.conf    # fill in keys + remote firewall IP
+# 2. Add to .env:
+#    WG_PRIVATE_KEY=<contents of privatekey>
+#    WG_PEER_PUBLIC_KEY=<remote firewall's public key>
+#    WG_ENDPOINT=<remote-firewall-ip-or-hostname>:51820
+#    STEAM_NETWORKING=false
 
-# 3. Set STEAM_NETWORKING=false in .env
-
-# 4. Start with relay
+# 3. Start with relay
 make relay
 ```
 
-**Remote firewall setup:**
+The WireGuard config is auto-generated from `.env` variables at container startup — no config files to manage. DDNS endpoints are automatically re-resolved every 5 minutes (configurable via `WG_RERESOLVE_INTERVAL`).
 
-See `wireguard/remote-firewall.conf.example` for the full config. The essentials:
+**Remote firewall setup (OPNsense):**
 
-1. Install WireGuard, enable IP forwarding
-2. Generate keys, configure the tunnel (`10.0.0.1/24` ↔ `10.0.0.2/24`)
-3. DNAT game ports (27015-27025/udp) through the tunnel to `10.0.0.2`
-4. MASQUERADE outbound traffic from the tunnel (so Steam sees the relay's IP)
-5. Allow UDP 51820 + game ports inbound in your firewall
+1. **VPN → WireGuard → Instances** — Create instance, set tunnel address (e.g. `10.x.x.1/24`), listen port `51820`
+2. **VPN → WireGuard → Peers** — Add home server's public key, allowed IPs matching your `WG_ADDRESS`
+3. **Firewall → Rules → WAN** — Allow UDP `51820` + game ports `27015-27025`
+4. **Firewall → NAT → Port Forward** — Forward game ports (`27015-27025`, `27515-27525`, `28015-28025` UDP) to your `WG_ADDRESS` IP
+5. **Firewall → NAT → Outbound** — Hybrid mode, add rule for your tunnel subnet → WAN interface address
+
+For non-OPNsense firewalls, see `wireguard/remote-firewall.conf.example`.
 
 The port ranges cover up to 10 game servers. No port forwarding needed on your home router — the tunnel punches through NAT with keepalives.
 
@@ -88,7 +90,7 @@ Everything is in `.env`. The important ones:
 | `SERVER_PASSWORD` | *(empty)* | Empty = public |
 | `RCON_PASSWORD` | `changeme` | Remote admin password. **Change this.** |
 | `START_MAP` | `ctf_2fort` | Map on boot |
-| `MAX_PLAYERS` | `24` | Up to 32 |
+| `MAX_PLAYERS` | `24` | Up to 64 |
 | `SERVER_PORT` | `27015` | Game port (UDP) |
 | `TICKRATE` | `66` | Server tickrate |
 | `STEAM_NETWORKING` | `true` | IP hiding via Valve relay |

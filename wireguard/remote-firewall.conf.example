@@ -1,6 +1,7 @@
 # WireGuard config for the REMOTE FIREWALL (relay side)
 #
-# This file is a reference — configure it on your remote firewall, not here.
+# This file is a reference for manual WireGuard setups (Linux CLI).
+# If using OPNsense, configure via the GUI instead — see README.
 #
 # Prerequisites:
 #   - Enable IP forwarding: sysctl -w net.ipv4.ip_forward=1
@@ -12,25 +13,26 @@
 #   wg genkey | tee privatekey | wg pubkey > publickey
 
 [Interface]
-Address = 10.0.0.1/24
+Address = <tunnel-address>/24
 ListenPort = 51820
 PrivateKey = <remote-firewall-private-key>
 
 # Forward game ports into the tunnel.
 # Port ranges cover 10 servers: game (27015-27025), client (27515-27525), SourceTV (28015-28025).
 # Replace eth0 with your public-facing interface name.
-PostUp = iptables -t nat -A PREROUTING -i eth0 -p udp -m multiport --dports 27015:27025,27515:27525,28015:28025 -j DNAT --to-destination 10.0.0.2
+# Replace <home-server-tunnel-ip> with the home server's WG_ADDRESS IP.
+PostUp = iptables -t nat -A PREROUTING -i eth0 -p udp -m multiport --dports 27015:27025,27515:27525,28015:28025 -j DNAT --to-destination <home-server-tunnel-ip>
 # NAT outbound traffic from the tunnel (Steam heartbeats, etc.) so Steam sees this firewall's IP
-PostUp = iptables -t nat -A POSTROUTING -o eth0 -s 10.0.0.0/24 -j MASQUERADE
+PostUp = iptables -t nat -A POSTROUTING -o eth0 -s <tunnel-subnet>/24 -j MASQUERADE
 # Allow forwarding between WireGuard and the internet
 PostUp = iptables -A FORWARD -i %i -j ACCEPT
 PostUp = iptables -A FORWARD -o %i -m state --state RELATED,ESTABLISHED -j ACCEPT
 
-PostDown = iptables -t nat -D PREROUTING -i eth0 -p udp -m multiport --dports 27015:27025,27515:27525,28015:28025 -j DNAT --to-destination 10.0.0.2
-PostDown = iptables -t nat -D POSTROUTING -o eth0 -s 10.0.0.0/24 -j MASQUERADE
+PostDown = iptables -t nat -D PREROUTING -i eth0 -p udp -m multiport --dports 27015:27025,27515:27525,28015:28025 -j DNAT --to-destination <home-server-tunnel-ip>
+PostDown = iptables -t nat -D POSTROUTING -o eth0 -s <tunnel-subnet>/24 -j MASQUERADE
 PostDown = iptables -D FORWARD -i %i -j ACCEPT
 PostDown = iptables -D FORWARD -o %i -m state --state RELATED,ESTABLISHED -j ACCEPT
 
 [Peer]
 PublicKey = <home-server-public-key>
-AllowedIPs = 10.0.0.2/32
+AllowedIPs = <home-server-tunnel-ip>/32

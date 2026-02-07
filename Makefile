@@ -128,12 +128,7 @@ endif
 RELAY_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.wireguard.yml
 
 relay:
-	@if [ ! -f wireguard/wg0.conf ]; then \
-		echo "Error: wireguard/wg0.conf not found."; \
-		echo "Copy wireguard/wg0.conf.example → wireguard/wg0.conf and fill in your keys."; \
-		exit 1; \
-	fi
-	$(RELAY_COMPOSE) up -d
+	$(RELAY_COMPOSE) up -d --build
 
 relay-stop:
 	$(RELAY_COMPOSE) down

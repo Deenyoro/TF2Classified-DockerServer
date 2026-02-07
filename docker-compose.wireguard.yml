@@ -9,9 +9,8 @@
 #   (or: make relay)
 #
 # Setup:
-#   1. Generate WireGuard keys on both machines:
-#        wg genkey | tee privatekey | wg pubkey > publickey
-#   2. Copy wireguard/wg0.conf.example → wireguard/wg0.conf, fill in keys + endpoint
+#   1. Generate WireGuard keys:  wg genkey | tee privatekey | wg pubkey > publickey
+#   2. Set the WG_* variables in .env
 #   3. Configure the remote firewall (see wireguard/remote-firewall.conf.example)
 #   4. Set STEAM_NETWORKING=false in .env
 #   5. make relay
@@ -23,21 +22,25 @@
 
 services:
   wireguard:
-    image: lscr.io/linuxserver/wireguard:latest
+    build:
+      context: ./wireguard
+      dockerfile: Dockerfile
     container_name: tf2c-wireguard
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
     environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
-      - TZ=${TZ:-UTC}
+      - WG_PRIVATE_KEY=${WG_PRIVATE_KEY}
+      - WG_ADDRESS=${WG_ADDRESS:-10.0.0.2/24}
+      - WG_DNS=${WG_DNS:-1.1.1.1}
+      - WG_PEER_PUBLIC_KEY=${WG_PEER_PUBLIC_KEY}
+      - WG_ENDPOINT=${WG_ENDPOINT}
+      - WG_ALLOWED_IPS=${WG_ALLOWED_IPS:-0.0.0.0/0}
+      - WG_PERSISTENT_KEEPALIVE=${WG_PERSISTENT_KEEPALIVE:-25}
+      - WG_RERESOLVE_INTERVAL=${WG_RERESOLVE_INTERVAL:-300}
     volumes:
-      - ./wireguard:/config/wg_confs
       - /lib/modules:/lib/modules:ro
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
     logging:
       driver: json-file
       options:
