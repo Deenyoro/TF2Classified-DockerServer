@@ -880,6 +880,12 @@ install_war3source() {
             (cd "${scripting}" && bash game_switcher_TF2.sh 2>/dev/null || true)
         fi
 
+        # Fix MAXPLAYERSCUSTOM for 64-player servers.
+        # Upstream hardcodes 34 for TF2 (only supports 32p), but TF2C servers
+        # can run up to 64 players. Raise to 66 (64 + 2 HLTV) to match CSS/CSGO.
+        find "${scripting}" -name "War3Source_Constants.inc" -exec \
+            sed -i 's/^#define MAXPLAYERSCUSTOM 34/#define MAXPLAYERSCUSTOM 66/' {} \; 2>/dev/null || true
+
         # Fix duplicate SkillName constant (W3SkillProp vs SkillString enum collision)
         # Applies to both directory layouts (War3Source/include/ and W3SIncs/)
         find "${scripting}" -name "War3Source_Constants.inc" -exec \
