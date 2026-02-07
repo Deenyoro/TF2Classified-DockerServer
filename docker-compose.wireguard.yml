@@ -1,0 +1,62 @@
+# WireGuard Relay Overlay
+#
+# Routes ALL game server traffic through a WireGuard tunnel to a remote
+# firewall, hiding your home IP. Players connect to the remote firewall's
+# public IP; your real IP is never exposed.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.wireguard.yml up -d
+#   (or: make relay)
+#
+# Setup:
+#   1. Generate WireGuard keys on both machines:
+#        wg genkey | tee privatekey | wg pubkey > publickey
+#   2. Copy wireguard/wg0.conf.example → wireguard/wg0.conf, fill in keys + endpoint
+#   3. Configure the remote firewall (see wireguard/remote-firewall.conf.example)
+#   4. Set STEAM_NETWORKING=false in .env
+#   5. make relay
+#
+# All game servers join the WireGuard container's network namespace.
+# Outbound Steam heartbeats, inbound player traffic — everything goes
+# through the tunnel. The remote firewall NATs outbound and DNATs game
+# ports inbound.
+
+services:
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: tf2c-wireguard
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./wireguard:/config/wg_confs
+      - /lib/modules:/lib/modules:ro
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Override game servers: route all traffic through the WireGuard tunnel
+  # instead of using host networking directly.
+  tf2classified:
+    network_mode: service:wireguard
+    depends_on:
+      - wireguard
+
+  tf2classified-2:
+    network_mode: service:wireguard
+    depends_on:
+      - wireguard
+
+  tf2classified-3:
+    network_mode: service:wireguard
+    depends_on:
+      - wireguard

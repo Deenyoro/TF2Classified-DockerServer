@@ -1,0 +1,36 @@
+# WireGuard config for the REMOTE FIREWALL (relay side)
+#
+# This file is a reference — configure it on your remote firewall, not here.
+#
+# Prerequisites:
+#   - Enable IP forwarding: sysctl -w net.ipv4.ip_forward=1
+#     (persist in /etc/sysctl.d/99-wireguard.conf)
+#   - Allow UDP 51820 inbound in your firewall
+#   - Allow game ports (27015-27025/udp) inbound in your firewall
+#
+# Generate keys:
+#   wg genkey | tee privatekey | wg pubkey > publickey
+
+[Interface]
+Address = 10.0.0.1/24
+ListenPort = 51820
+PrivateKey = <remote-firewall-private-key>
+
+# Forward game ports into the tunnel.
+# Port ranges cover 10 servers: game (27015-27025), client (27515-27525), SourceTV (28015-28025).
+# Replace eth0 with your public-facing interface name.
+PostUp = iptables -t nat -A PREROUTING -i eth0 -p udp -m multiport --dports 27015:27025,27515:27525,28015:28025 -j DNAT --to-destination 10.0.0.2
+# NAT outbound traffic from the tunnel (Steam heartbeats, etc.) so Steam sees this firewall's IP
+PostUp = iptables -t nat -A POSTROUTING -o eth0 -s 10.0.0.0/24 -j MASQUERADE
+# Allow forwarding between WireGuard and the internet
+PostUp = iptables -A FORWARD -i %i -j ACCEPT
+PostUp = iptables -A FORWARD -o %i -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+PostDown = iptables -t nat -D PREROUTING -i eth0 -p udp -m multiport --dports 27015:27025,27515:27525,28015:28025 -j DNAT --to-destination 10.0.0.2
+PostDown = iptables -t nat -D POSTROUTING -o eth0 -s 10.0.0.0/24 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT
+PostDown = iptables -D FORWARD -o %i -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+[Peer]
+PublicKey = <home-server-public-key>
+AllowedIPs = 10.0.0.2/32

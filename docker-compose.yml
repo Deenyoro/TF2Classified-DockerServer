@@ -4,6 +4,7 @@
 #   docker compose up -d                                       # single server (Steam relay, IP hidden)
 #   docker compose --profile fastdl up -d                      # with self-hosted FastDL
 #   docker compose --profile server2 up -d                     # run additional server
+#   make relay                                                 # tunnel through WireGuard relay
 #
 # Steam Datagram Relay hides your IP by default.
 #

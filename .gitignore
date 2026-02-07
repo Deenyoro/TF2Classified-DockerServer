@@ -13,6 +13,12 @@
 *.crt
 *.csr
 
+# WireGuard (configs contain private keys)
+wireguard/*.conf
+!wireguard/*.conf.example
+wireguard/privatekey
+wireguard/publickey
+
 # Data directories (game files, configs, logs, demos)
 data/
 servers/

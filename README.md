@@ -28,10 +28,55 @@ With Steam Networking on (default), the server shows up in the TF2C browser. Pla
 
 Without Steam Networking, players connect by your public IP directly. You'd need to port-forward 27015/UDP and your IP is exposed.
 
-| | IP Hidden | Favoritable | Port Forward |
-|-|-----------|-------------|-------------|
-| Steam Networking (default) | yes | no | no |
-| Direct | no | yes | yes |
+With a WireGuard relay, all traffic tunnels through a remote firewall. Your home IP is hidden, players connect to the relay's fixed public IP, and they can favorite it. See [WireGuard Relay](#wireguard-relay) below.
+
+| | IP Hidden | Favoritable | Port Forward | Setup |
+|-|-----------|-------------|-------------|-------|
+| Steam Networking (default) | yes | no | no | Zero config |
+| Direct | no | yes | yes | Router port forward |
+| WireGuard Relay | yes | yes | no (on home) | Remote firewall + WireGuard |
+
+### WireGuard Relay
+
+Route all game server traffic through a WireGuard tunnel to a remote firewall. Your home IP stays hidden, players connect to the relay's fixed public IP, and they can favorite it — the best of both worlds.
+
+**Home server setup:**
+
+```bash
+# 1. Generate keys
+wg genkey | tee wireguard/privatekey | wg pubkey > wireguard/publickey
+
+# 2. Create config from template
+cp wireguard/wg0.conf.example wireguard/wg0.conf
+nano wireguard/wg0.conf    # fill in keys + remote firewall IP
+
+# 3. Set STEAM_NETWORKING=false in .env
+
+# 4. Start with relay
+make relay
+```
+
+**Remote firewall setup:**
+
+See `wireguard/remote-firewall.conf.example` for the full config. The essentials:
+
+1. Install WireGuard, enable IP forwarding
+2. Generate keys, configure the tunnel (`10.0.0.1/24` ↔ `10.0.0.2/24`)
+3. DNAT game ports (27015-27025/udp) through the tunnel to `10.0.0.2`
+4. MASQUERADE outbound traffic from the tunnel (so Steam sees the relay's IP)
+5. Allow UDP 51820 + game ports inbound in your firewall
+
+The port ranges cover up to 10 game servers. No port forwarding needed on your home router — the tunnel punches through NAT with keepalives.
+
+**Make targets:**
+
+```
+make relay         # start with WireGuard tunnel
+make relay-stop    # stop everything
+make relay-logs    # tail logs
+```
+
+**How it works:** The compose overlay (`docker-compose.wireguard.yml`) switches game servers from host networking to the WireGuard container's network namespace. All traffic — player connections, Steam heartbeats, everything — flows through the tunnel. The remote firewall DNATs inbound game traffic and MASQUERADEs outbound, so Steam's server browser shows the relay's public IP.
 
 ## Configuration
 

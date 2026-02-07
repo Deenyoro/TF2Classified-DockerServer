@@ -1,4 +1,4 @@
-.PHONY: help setup build start stop restart logs console console-server update status start-fastdl compress-maps upload-maps add-server start-server stop-server logs-server clean
+.PHONY: help setup build start stop restart logs console console-server update status start-fastdl compress-maps upload-maps add-server start-server stop-server logs-server relay relay-stop relay-logs clean
 
 help:
 	@echo "TF2 Classified Docker Server"
@@ -15,6 +15,11 @@ help:
 	@echo "  make start-fastdl  — Start with self-hosted FastDL"
 	@echo "  make compress-maps — Compress maps in data/maps/ for FastDL"
 	@echo "  make upload-maps   — Compress + upload maps to Cloudflare R2"
+	@echo ""
+	@echo "  WireGuard Relay:"
+	@echo "  make relay         — Start with WireGuard tunnel (hides IP)"
+	@echo "  make relay-stop    — Stop WireGuard relay setup"
+	@echo "  make relay-logs    — Tail WireGuard + server logs"
 	@echo ""
 	@echo "  Multi-server:"
 	@echo "  make add-server N=2      — Create dirs + .env for server N"
@@ -119,6 +124,22 @@ ifndef N
 	@exit 1
 endif
 	docker compose logs -f tf2classified-$(N)
+
+RELAY_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.wireguard.yml
+
+relay:
+	@if [ ! -f wireguard/wg0.conf ]; then \
+		echo "Error: wireguard/wg0.conf not found."; \
+		echo "Copy wireguard/wg0.conf.example → wireguard/wg0.conf and fill in your keys."; \
+		exit 1; \
+	fi
+	$(RELAY_COMPOSE) up -d
+
+relay-stop:
+	$(RELAY_COMPOSE) down
+
+relay-logs:
+	$(RELAY_COMPOSE) logs -f
 
 clean:
 	docker compose down --rmi all
