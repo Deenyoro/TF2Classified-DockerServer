@@ -4,22 +4,31 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Drop root privileges
 # ---------------------------------------------------------------------------
-# The container starts as root so we can fix ownership of Docker volume mount
-# points (named volumes mounted at sub-paths are created as root). After
-# fixing ownership, re-exec this script as the unprivileged srcds user.
+# Multi-server deployments need per-server isolation of the shared game
+# directory. When the /data/overlay volume is mounted, OverlayFS creates a
+# copy-on-write layer so each server's writes (addon configs, sounds,
+# gamedata patches, MOTD, SourceMod installs) are fully isolated.
+# After setup, re-exec this script as the unprivileged srcds user.
 if [[ "$(id -u)" == "0" ]]; then
     # Fix ownership of volume mount points Docker may have created as root
     for d in /data /data/tf /data/classified; do
         [[ -d "$d" ]] && chown srcds:srcds "$d"
     done
-    # Per-server SourceMod volume overlay (intermediate dirs + mount point)
-    if [[ -d /data/classified/tf2classified/addons/sourcemod ]]; then
-        chown srcds:srcds \
-            /data/classified/tf2classified \
-            /data/classified/tf2classified/addons \
-            /data/classified/tf2classified/addons/sourcemod \
-            2>/dev/null || true
+
+    # Per-server game directory isolation via OverlayFS
+    if [[ -d /data/overlay ]] && [[ -d /data/classified/tf2classified ]]; then
+        mkdir -p /data/overlay/upper /data/overlay/work
+        chown -R srcds:srcds /data/overlay
+        if mount -t overlay overlay \
+            -o "lowerdir=/data/classified/tf2classified,upperdir=/data/overlay/upper,workdir=/data/overlay/work" \
+            /data/classified/tf2classified 2>/dev/null; then
+            echo "[INFO]  OverlayFS mounted — game directory writes are per-server"
+        else
+            echo "[WARN]  OverlayFS mount failed — add cap_add: SYS_ADMIN and security_opt: apparmor:unconfined"
+            echo "[WARN]  Running without per-server isolation (single-server is fine, multi-server may have conflicts)"
+        fi
     fi
+
     exec runuser -u srcds -- "$0" "$@"
 fi
 

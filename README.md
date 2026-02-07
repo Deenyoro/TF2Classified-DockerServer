@@ -321,14 +321,14 @@ make logs-server N=2
 | Content | Primary Server | Server N | Can Share? |
 |---------|---------------|----------|------------|
 | Game files (TF2 + TF2C) | `tf2-data` volume | Same volume | Always shared |
-| SourceMod install | Own volume | `sm-server-N` volume | Never shared |
+| Game dir writes | Own overlay | `overlay-N` volume | Never shared |
 | Configs | `data/cfg/` | `servers/N/cfg/` | Edit docker-compose.yml |
 | Addons | `data/addons/` | `servers/N/addons/` | Edit docker-compose.yml |
 | Maps | `data/maps/` | `servers/N/maps/` | Edit docker-compose.yml |
 | Logs | `data/logs/` | `servers/N/logs/` | Never shared |
 | Demos | `data/demos/` | `servers/N/demos/` | Never shared |
 
-**SourceMod isolation:** Each server gets its own SourceMod directory via a per-server Docker volume (`sm-server-N`). This prevents concurrent addon installers from corrupting shared gamedata files, and ensures addons enabled on one server (VSH, War3Source, RTD, etc.) don't bleed into other servers. SourceMod downloads automatically on each server's first boot (~15MB, takes a few seconds).
+**Game directory isolation:** Each server gets a per-server OverlayFS layer (`overlay-N` volume) over the shared game directory. All writes — SourceMod installs, addon configs, sounds, gamedata patches, MOTD — are fully isolated per server. The shared game files (~22GB) are read-only and only downloaded once. This prevents addon contamination (e.g. War3Source configs bleeding into other servers) and gamedata corruption from concurrent installs.
 
 To share maps/addons across all servers, edit `docker-compose.yml` and change `./servers/N/maps` to `./data/maps` (same for addons).
 

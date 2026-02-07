@@ -1094,6 +1094,15 @@ disable_war3source() {
         rmdir "${SM_PLUGINS}/war3source" 2>/dev/null || true
     fi
 
+    # Remove War3Source configs and sounds from game directory
+    # (prevents contamination bleeding into non-War3Source servers)
+    rm -f "${GAME_DIR}/cfg/war3source.cfg" \
+          "${GAME_DIR}/cfg/war3source_tf2.cfg" \
+          "${GAME_DIR}/cfg/war3source_css.cfg" \
+          "${GAME_DIR}/cfg/war3source_csgo.cfg" \
+          "${GAME_DIR}/cfg/war3source_fof.cfg" 2>/dev/null || true
+    rm -rf "${GAME_DIR}/sound/war3source" 2>/dev/null || true
+
     # If no other addon needs TF2 Tools, clean up autoload
     if [[ "${ADDON_VSH,,}" != "true" ]] && [[ "${ADDON_TF2ATTRIBUTES,,}" != "true" ]] && [[ "${ADDON_MAPCONFIG,,}" != "true" ]]; then
         rm -f "${SM_DIR}/extensions/game.tf2.autoload"

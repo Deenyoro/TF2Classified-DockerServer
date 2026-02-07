@@ -114,9 +114,13 @@ services:
   #   2. Edit .env.server2          (change name, port, RCON, addons, etc.)
   #   3. docker compose --profile server2 up -d
   #
-  # Each additional server gets its own SourceMod volume (sm-server-N) so
-  # addon installs and gamedata patches can't interfere with each other.
-  # Game files (~22GB) are shared — only downloaded once.
+  # Each server gets its own OverlayFS layer (overlay-N volume) over the
+  # shared game directory. All writes (SourceMod, addon configs, sounds,
+  # gamedata, MOTD) are isolated per server. Game files (~22GB) are shared.
+  #
+  # IMPORTANT: When running multiple servers, also add overlay-1:/data/overlay,
+  # cap_add: SYS_ADMIN, and security_opt: apparmor:unconfined to the primary
+  # server above. All servers need isolation when sharing game files.
   #
   # To share maps/addons with the primary server, change ./servers/N/maps
   # to ./data/maps (same for addons) in the volumes below.
@@ -133,12 +137,16 @@ services:
   #   restart: unless-stopped
   #   network_mode: host
   #   user: "0:0"
+  #   cap_add:
+  #     - SYS_ADMIN
+  #   security_opt:
+  #     - apparmor:unconfined
   #   env_file:
   #     - .env.server2
   #   volumes:
   #     - tf2-data:/data/tf
   #     - classified-data:/data/classified
-  #     - sm-server-2:/data/classified/tf2classified/addons/sourcemod
+  #     - overlay-2:/data/overlay
   #     - ./servers/2/cfg:/data/cfg:ro
   #     - ./servers/2/addons:/data/addons:ro
   #     - ./servers/2/maps:/data/maps:ro
@@ -166,12 +174,16 @@ services:
   #   restart: unless-stopped
   #   network_mode: host
   #   user: "0:0"
+  #   cap_add:
+  #     - SYS_ADMIN
+  #   security_opt:
+  #     - apparmor:unconfined
   #   env_file:
   #     - .env.server3
   #   volumes:
   #     - tf2-data:/data/tf
   #     - classified-data:/data/classified
-  #     - sm-server-3:/data/classified/tf2classified/addons/sourcemod
+  #     - overlay-3:/data/overlay
   #     - ./servers/3/cfg:/data/cfg:ro
   #     - ./servers/3/addons:/data/addons:ro
   #     - ./servers/3/maps:/data/maps:ro
@@ -192,5 +204,6 @@ volumes:
   tf2-data:
   classified-data:
   # Uncomment when enabling additional servers above
-  # sm-server-2:
-  # sm-server-3:
+  # overlay-1:
+  # overlay-2:
+  # overlay-3:
