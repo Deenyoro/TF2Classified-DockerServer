@@ -126,6 +126,7 @@ endif
 	docker compose logs -f tf2classified-$(N)
 
 RELAY_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.wireguard.yml
+LOCAL_COMPOSE := docker compose -f docker-compose.local.yml
 
 relay:
 	$(RELAY_COMPOSE) up -d --build
@@ -135,6 +136,21 @@ relay-stop:
 
 relay-logs:
 	$(RELAY_COMPOSE) logs -f
+
+local:
+	$(LOCAL_COMPOSE) up -d --build
+
+local-stop:
+	$(LOCAL_COMPOSE) down
+
+local-restart:
+	$(LOCAL_COMPOSE) down && $(LOCAL_COMPOSE) up -d
+
+local-logs:
+	$(LOCAL_COMPOSE) logs -f
+
+local-status:
+	$(LOCAL_COMPOSE) ps
 
 clean:
 	docker compose down --rmi all

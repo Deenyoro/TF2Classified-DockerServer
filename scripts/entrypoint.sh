@@ -2,6 +2,28 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
+# Drop root privileges
+# ---------------------------------------------------------------------------
+# The container starts as root so we can fix ownership of Docker volume mount
+# points (named volumes mounted at sub-paths are created as root). After
+# fixing ownership, re-exec this script as the unprivileged srcds user.
+if [[ "$(id -u)" == "0" ]]; then
+    # Fix ownership of volume mount points Docker may have created as root
+    for d in /data /data/tf /data/classified; do
+        [[ -d "$d" ]] && chown srcds:srcds "$d"
+    done
+    # Per-server SourceMod volume overlay (intermediate dirs + mount point)
+    if [[ -d /data/classified/tf2classified/addons/sourcemod ]]; then
+        chown srcds:srcds \
+            /data/classified/tf2classified \
+            /data/classified/tf2classified/addons \
+            /data/classified/tf2classified/addons/sourcemod \
+            2>/dev/null || true
+    fi
+    exec runuser -u srcds -- "$0" "$@"
+fi
+
+# ---------------------------------------------------------------------------
 # TF2 Classified Dedicated Server — Container Entrypoint
 # ---------------------------------------------------------------------------
 
@@ -249,7 +271,7 @@ VDFEOF
         log_info "MetaMod already present, skipping"
     fi
 
-    if [[ ! -d "${GAME_DIR}/addons/sourcemod" ]]; then
+    if [[ ! -f "${GAME_DIR}/addons/sourcemod/configs/core.cfg" ]]; then
         install_tarball "${SM_URL}" "SourceMod" "${GAME_DIR}"
     else
         log_info "SourceMod already present, skipping"
@@ -366,7 +388,7 @@ if [[ -d "${SERVER_DATA}/maps" ]] && command -v bzip2 &>/dev/null; then
             # Compress if missing or source is newer
             if [[ ! -f "${FASTDL_MAPS_DIR}/${filename}.bz2" ]] || [[ "${bsp}" -nt "${FASTDL_MAPS_DIR}/${filename}.bz2" ]]; then
                 bzip2 -kf "${FASTDL_MAPS_DIR}/${filename}"
-                ((COMPRESSED++))
+                COMPRESSED=$((COMPRESSED + 1))
             fi
         done
         if [[ ${COMPRESSED} -gt 0 ]]; then

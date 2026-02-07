@@ -107,89 +107,90 @@ services:
   # --------------------------------------------------------------------------
   # Additional server instances (optional)
   #
-  # All servers share game files (~22GB downloads once). Each server has:
-  #   - Own config (servers/N/cfg/) or shared (data/cfg/)
-  #   - Own addons (servers/N/addons/) or shared (data/addons/)
-  #   - Own maps (servers/N/maps/) or shared (data/maps/)
-  #   - Own logs (servers/N/logs/) — always per-server
-  #   - Own demos (servers/N/demos/) — always per-server
+  # Most users only need the single server above. To run multiple servers,
+  # uncomment a service block below and set up its config:
   #
-  # Setup:
   #   1. make add-server N=2        (creates dirs + .env.server2)
-  #   2. Edit .env.server2          (change name, port, RCON, etc.)
+  #   2. Edit .env.server2          (change name, port, RCON, addons, etc.)
   #   3. docker compose --profile server2 up -d
   #
-  # To share maps/addons with the primary server, edit the volumes below
-  # to point to ./data/maps and ./data/addons instead of ./servers/N/...
+  # Each additional server gets its own SourceMod volume (sm-server-N) so
+  # addon installs and gamedata patches can't interfere with each other.
+  # Game files (~22GB) are shared — only downloaded once.
+  #
+  # To share maps/addons with the primary server, change ./servers/N/maps
+  # to ./data/maps (same for addons) in the volumes below.
   # --------------------------------------------------------------------------
-  tf2classified-2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PUID: ${PUID:-1000}
-        PGID: ${PGID:-1000}
-    container_name: tf2classified-2
-    restart: unless-stopped
-    network_mode: host
-    env_file:
-      - .env.server2
-    volumes:
-      # Shared game files (all servers use the same ~22GB install)
-      - tf2-data:/data/tf
-      - classified-data:/data/classified
-      # Per-server content (change to ./data/X to share with primary)
-      - ./servers/2/cfg:/data/cfg:ro
-      - ./servers/2/addons:/data/addons:ro
-      - ./servers/2/maps:/data/maps:ro
-      # Per-server outputs (always separate)
-      - ./servers/2/logs:/data/logs
-      - ./servers/2/demos:/data/demos
-    stop_grace_period: 30s
-    stdin_open: true
-    tty: true
-    logging:
-      driver: json-file
-      options:
-        max-size: "${LOG_MAX_SIZE:-10m}"
-        max-file: "${LOG_MAX_FILE:-3}"
-    profiles:
-      - server2
 
-  tf2classified-3:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PUID: ${PUID:-1000}
-        PGID: ${PGID:-1000}
-    container_name: tf2classified-3
-    restart: unless-stopped
-    network_mode: host
-    env_file:
-      - .env.server3
-    volumes:
-      # Shared game files (all servers use the same ~22GB install)
-      - tf2-data:/data/tf
-      - classified-data:/data/classified
-      # Per-server content (change to ./data/X to share with primary)
-      - ./servers/3/cfg:/data/cfg:ro
-      - ./servers/3/addons:/data/addons:ro
-      - ./servers/3/maps:/data/maps:ro
-      # Per-server outputs (always separate)
-      - ./servers/3/logs:/data/logs
-      - ./servers/3/demos:/data/demos
-    stop_grace_period: 30s
-    stdin_open: true
-    tty: true
-    logging:
-      driver: json-file
-      options:
-        max-size: "${LOG_MAX_SIZE:-10m}"
-        max-file: "${LOG_MAX_FILE:-3}"
-    profiles:
-      - server3
+  # tf2classified-2:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     args:
+  #       PUID: ${PUID:-1000}
+  #       PGID: ${PGID:-1000}
+  #   container_name: tf2classified-2
+  #   restart: unless-stopped
+  #   network_mode: host
+  #   user: "0:0"
+  #   env_file:
+  #     - .env.server2
+  #   volumes:
+  #     - tf2-data:/data/tf
+  #     - classified-data:/data/classified
+  #     - sm-server-2:/data/classified/tf2classified/addons/sourcemod
+  #     - ./servers/2/cfg:/data/cfg:ro
+  #     - ./servers/2/addons:/data/addons:ro
+  #     - ./servers/2/maps:/data/maps:ro
+  #     - ./servers/2/logs:/data/logs
+  #     - ./servers/2/demos:/data/demos
+  #   stop_grace_period: 30s
+  #   stdin_open: true
+  #   tty: true
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: "${LOG_MAX_SIZE:-10m}"
+  #       max-file: "${LOG_MAX_FILE:-3}"
+  #   profiles:
+  #     - server2
+
+  # tf2classified-3:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     args:
+  #       PUID: ${PUID:-1000}
+  #       PGID: ${PGID:-1000}
+  #   container_name: tf2classified-3
+  #   restart: unless-stopped
+  #   network_mode: host
+  #   user: "0:0"
+  #   env_file:
+  #     - .env.server3
+  #   volumes:
+  #     - tf2-data:/data/tf
+  #     - classified-data:/data/classified
+  #     - sm-server-3:/data/classified/tf2classified/addons/sourcemod
+  #     - ./servers/3/cfg:/data/cfg:ro
+  #     - ./servers/3/addons:/data/addons:ro
+  #     - ./servers/3/maps:/data/maps:ro
+  #     - ./servers/3/logs:/data/logs
+  #     - ./servers/3/demos:/data/demos
+  #   stop_grace_period: 30s
+  #   stdin_open: true
+  #   tty: true
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: "${LOG_MAX_SIZE:-10m}"
+  #       max-file: "${LOG_MAX_FILE:-3}"
+  #   profiles:
+  #     - server3
 
 volumes:
   tf2-data:
   classified-data:
+  # Uncomment when enabling additional servers above
+  # sm-server-2:
+  # sm-server-3:
