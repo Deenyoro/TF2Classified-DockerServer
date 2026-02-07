@@ -74,7 +74,7 @@ cache_download() {
 disable_stock_plugin() {
     local plugin="$1" reason="$2"
     if [[ -f "${SM_PLUGINS}/${plugin}" ]]; then
-        mv "${SM_PLUGINS}/${plugin}" "${SM_DISABLED}/${plugin}"
+        mv "${SM_PLUGINS}/${plugin}" "${SM_DISABLED}/${plugin}" 2>/dev/null || true
         touch "${ADDON_MARKERS}/stock_disabled_${plugin}_by_${reason}"
         log_info "  Disabled stock plugin: ${plugin}"
     fi
@@ -85,7 +85,7 @@ restore_stock_plugin() {
     local plugin="$1" reason="$2"
     if [[ -f "${ADDON_MARKERS}/stock_disabled_${plugin}_by_${reason}" ]]; then
         if [[ -f "${SM_DISABLED}/${plugin}" ]] && [[ ! -f "${SM_PLUGINS}/${plugin}" ]]; then
-            mv "${SM_DISABLED}/${plugin}" "${SM_PLUGINS}/${plugin}"
+            mv "${SM_DISABLED}/${plugin}" "${SM_PLUGINS}/${plugin}" 2>/dev/null || true
             log_info "  Restored stock plugin: ${plugin}"
         fi
         rm -f "${ADDON_MARKERS}/stock_disabled_${plugin}_by_${reason}"
@@ -96,7 +96,7 @@ restore_stock_plugin() {
 ensure_plugin_active() {
     local plugin="$1"
     if [[ -f "${SM_DISABLED}/${plugin}" ]] && [[ ! -f "${SM_PLUGINS}/${plugin}" ]]; then
-        mv "${SM_DISABLED}/${plugin}" "${SM_PLUGINS}/${plugin}"
+        mv "${SM_DISABLED}/${plugin}" "${SM_PLUGINS}/${plugin}" 2>/dev/null || true
     fi
 }
 
@@ -104,7 +104,7 @@ ensure_plugin_active() {
 ensure_plugin_disabled() {
     local plugin="$1"
     if [[ -f "${SM_PLUGINS}/${plugin}" ]]; then
-        mv "${SM_PLUGINS}/${plugin}" "${SM_DISABLED}/${plugin}"
+        mv "${SM_PLUGINS}/${plugin}" "${SM_DISABLED}/${plugin}" 2>/dev/null || true
     fi
 }
 
@@ -135,11 +135,13 @@ patch_tf2c_gamedata() {
     grep -q '"tf2classified"' "${gamedata_file}" 2>/dev/null && return 0
 
     # Insert the tf2classified section before the final "}"
-    local tmp="${gamedata_file}.tmp"
+    # Use a unique temp file to avoid races when multiple containers patch concurrently
+    local tmp="${gamedata_file}.tmp.$$"
     head -n -1 "${gamedata_file}" > "${tmp}"
     cat "${patch_file}" >> "${tmp}"
     echo "}" >> "${tmp}"
-    mv "${tmp}" "${gamedata_file}"
+    mv "${tmp}" "${gamedata_file}" 2>/dev/null || true
+    rm -f "${tmp}"
     log_info "  Patched $(basename "${gamedata_file}") with TF2C gamedata"
 }
 
@@ -687,11 +689,12 @@ patch_tf2tools_gamedata() {
         return 0
     fi
 
-    local tmp="${gamedata_file}.tmp"
+    local tmp="${gamedata_file}.tmp.$$"
     head -n -1 "${gamedata_file}" > "${tmp}"
     cat "${patch_file}" >> "${tmp}"
     echo "}" >> "${tmp}"
-    mv "${tmp}" "${gamedata_file}"
+    mv "${tmp}" "${gamedata_file}" 2>/dev/null || true
+    rm -f "${tmp}"
     log_info "  Patched sm-tf2.games.txt with TF2C gamedata"
 }
 
