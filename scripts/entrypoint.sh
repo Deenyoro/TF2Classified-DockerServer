@@ -326,7 +326,7 @@ if [[ -d "${SERVER_DATA}/cfg" ]]; then
         [[ -f "$f" ]] || continue
         fname="$(basename "$f")"
         # motd files live in the game root, not cfg/
-        if [[ "${fname}" == "motd.txt" || "${fname}" == "motd_default.txt" ]]; then
+        if [[ "${fname,,}" == "motd.txt" || "${fname}" == "motd_default.txt" ]]; then
             ln -sf "$f" "${GAME_DIR}/${fname}"
         else
             ln -sf "$f" "${GAME_DIR}/cfg/${fname}"
@@ -363,6 +363,27 @@ if [[ -d "${SERVER_DATA}/addons/sourcemod/configs" ]]; then
             ln -sf "$f" "${GAME_DIR}/addons/sourcemod/configs/${local_name}"
         fi
     done
+fi
+
+# Guarantee MOTD files always exist — the Source engine reads cfg/MOTD.txt for
+# the HTML MOTD panel shown on connect. Without it, players see stale cached
+# content from other servers. We write both cfg/MOTD.txt and motd.txt (game root).
+DEFAULT_MOTD='<html>
+<body style="background:#1a1a2e;color:#e0e0e0;font-family:sans-serif;text-align:center;padding:40px">
+<h1 style="color:#e94560">TF2 Classified</h1>
+<p>Community Server</p>
+</body>
+</html>'
+
+# cfg/MOTD.txt is the primary file the engine reads for the connect MOTD panel
+if [[ -f "${GAME_DIR}/motd.txt" ]] || [[ -L "${GAME_DIR}/motd.txt" ]]; then
+    # Use the per-server motd.txt content for cfg/MOTD.txt too
+    cp -f "${GAME_DIR}/motd.txt" "${GAME_DIR}/cfg/MOTD.txt"
+    log_info "Wrote cfg/MOTD.txt from per-server motd.txt"
+else
+    echo "${DEFAULT_MOTD}" > "${GAME_DIR}/motd.txt"
+    echo "${DEFAULT_MOTD}" > "${GAME_DIR}/cfg/MOTD.txt"
+    log_info "Wrote default MOTD files (no custom MOTD provided)"
 fi
 
 if [[ -d "${SERVER_DATA}/maps" ]]; then
@@ -502,6 +523,25 @@ fi
 # 6. Launch
 # ---------------------------------------------------------------------------
 AUTO_UPDATE_CVAR=$(bool_to_cvar "${AUTO_UPDATE}")
+
+# Random start map: if START_MAP contains a glob wildcard (*), pick a random
+# matching .bsp from the maps directory. E.g. START_MAP=vsh_* picks a random VSH map.
+if [[ "${START_MAP}" == *"*"* ]]; then
+    shopt -s nullglob
+    MATCHING_MAPS=()
+    for bsp in "${GAME_DIR}"/maps/${START_MAP}.bsp; do
+        MATCHING_MAPS+=("$(basename "${bsp%.bsp}")")
+    done
+    shopt -u nullglob
+    if [[ ${#MATCHING_MAPS[@]} -gt 0 ]]; then
+        RANDOM_IDX=$((RANDOM % ${#MATCHING_MAPS[@]}))
+        START_MAP="${MATCHING_MAPS[$RANDOM_IDX]}"
+        log_info "Random start map: ${START_MAP} (from ${#MATCHING_MAPS[@]} matching maps)"
+    else
+        log_warn "No maps matching '${START_MAP}' — falling back to ctf_2fort"
+        START_MAP="ctf_2fort"
+    fi
+fi
 
 echo ""
 echo "  Server:     ${SERVER_NAME}"

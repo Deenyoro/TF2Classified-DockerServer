@@ -49,6 +49,18 @@ fi
 
 mkdir -p "${SM_DISABLED}" "${ADDON_MARKERS}" "${ADDON_CACHE}"
 
+# Disable SM's built-in gamedata auto-updater. It overwrites patched gamedata
+# files (sm-tf2.games.txt, tf2.items.txt) with stock TF2 versions on every boot,
+# destroying the TF2 Classified offsets we need. The custom/ directory provides
+# override protection for core SM files, but third-party extensions (TF2Items)
+# load their gamedata directly, so we must also prevent overwrites.
+if [[ -f "${SM_DIR}/configs/core.cfg" ]]; then
+    if grep -q '"DisableAutoUpdate".*"no"' "${SM_DIR}/configs/core.cfg" 2>/dev/null; then
+        sed -i 's/"DisableAutoUpdate".*"no"/"DisableAutoUpdate"\t\t\t"yes"/' "${SM_DIR}/configs/core.cfg"
+        log_info "  Disabled SM gamedata auto-updater (preserves TF2C patches)"
+    fi
+fi
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -121,21 +133,39 @@ ensure_plugin_disabled() {
 # function below checks for this.
 # ---------------------------------------------------------------------------
 
-# Patch a gamedata file to add TF2 Classified ("tf2classified") sections.
-# Inserts the bundled tf2c section content before the file's final closing brace.
-# Safe to call repeatedly — skips if already patched.
-patch_tf2c_gamedata() {
+# Install TF2 Classified gamedata into SM's custom/ override directory.
+# Files in gamedata/custom/ are never overwritten by SM's auto-updater and
+# are parsed after the stock files, so they cleanly override offsets/signatures.
+# For third-party extensions (TF2Items) that may not load custom/, we also
+# patch the main gamedata file directly as a fallback.
+install_tf2c_gamedata() {
     local gamedata_file="$1"
     local patch_file="$2"
 
-    [[ -f "${gamedata_file}" ]] || return 0
     [[ -f "${patch_file}" ]] || return 0
 
-    # Skip if already patched
-    grep -q '"tf2classified"' "${gamedata_file}" 2>/dev/null && return 0
+    # Install to custom/ directory (survives SM auto-updater)
+    local custom_dir="${SM_GAMEDATA}/custom"
+    mkdir -p "${custom_dir}"
+    local custom_name="tf2c.$(basename "${gamedata_file}")"
+    # Wrap patch content in a proper Games{} block for standalone loading
+    if ! grep -q '"Games"' "${patch_file}" 2>/dev/null; then
+        {
+            echo '"Games"'
+            echo '{'
+            cat "${patch_file}"
+            echo '}'
+        } > "${custom_dir}/${custom_name}"
+    else
+        cp "${patch_file}" "${custom_dir}/${custom_name}"
+    fi
 
-    # Insert the tf2classified section before the final "}"
-    # Use a unique temp file to avoid races when multiple containers patch concurrently
+    # Also patch the main file directly (for extensions that don't use custom/)
+    [[ -f "${gamedata_file}" ]] || return 0
+    if grep -q '"tf2classified"' "${gamedata_file}" 2>/dev/null; then
+        return 0
+    fi
+
     local tmp="${gamedata_file}.tmp.$$"
     head -n -1 "${gamedata_file}" > "${tmp}"
     cat "${patch_file}" >> "${tmp}"
@@ -144,6 +174,9 @@ patch_tf2c_gamedata() {
     rm -f "${tmp}"
     log_info "  Patched $(basename "${gamedata_file}") with TF2C gamedata"
 }
+
+# Legacy alias used throughout this script
+patch_tf2c_gamedata() { install_tf2c_gamedata "$@"; }
 
 # Validate that key symbols still exist in the TF2C binary.
 # If a TF2C update changes the binary, symbols may move or disappear.
