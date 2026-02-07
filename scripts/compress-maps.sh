@@ -54,7 +54,7 @@ for bsp in "${BSP_FILES[@]}"; do
         echo "    → already compressed (skipped)"
     fi
 
-    ((COUNT++))
+    COUNT=$((COUNT + 1))
 done
 
 echo ""
