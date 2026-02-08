@@ -295,8 +295,8 @@ VDFEOF
             rm -f "${GAME_DIR}/addons/sourcemod/extensions/smjansson.ext.so"
             mkdir -p "${GAME_DIR}/addons/sourcemod/extensions/x64"
             if [[ ! -f "${SMJ_DST}" ]]; then
-                cp "${SMJ_SRC}" "${SMJ_DST}"
-                chmod 755 "${SMJ_DST}"
+                cp "${SMJ_SRC}" "${SMJ_DST}" 2>/dev/null || true
+                chmod 755 "${SMJ_DST}" 2>/dev/null || true
                 log_info "Installed SMJansson (64-bit)"
             fi
             # Autoload marker must exist in extensions root for SM to load it
@@ -313,7 +313,7 @@ export ADDON_ADVERTISEMENTS ADDON_RTD ADDON_VSH ADDON_WAR3SOURCE
 export ADDON_ROUNDTIME ADDON_MAPCONFIG
 export TF2ATTR_URL MCE_URL NATIVEVOTES_URL ADVERTISEMENTS_URL RTD_URL
 export VSH_URL TF2ITEMS_URL WAR3SOURCE_URL ROUNDTIME_URL
-/opt/scripts/install-addons.sh "${GAME_DIR}"
+/opt/scripts/install-addons.sh "${GAME_DIR}" || log_warn "Addon installation had errors — server will start without some addons"
 
 # ---------------------------------------------------------------------------
 # 3. Link user content from /data bind mounts
@@ -378,7 +378,7 @@ DEFAULT_MOTD='<html>
 # cfg/MOTD.txt is the primary file the engine reads for the connect MOTD panel
 if [[ -f "${GAME_DIR}/motd.txt" ]] || [[ -L "${GAME_DIR}/motd.txt" ]]; then
     # Use the per-server motd.txt content for cfg/MOTD.txt too
-    cp -f "${GAME_DIR}/motd.txt" "${GAME_DIR}/cfg/MOTD.txt"
+    cp -f "${GAME_DIR}/motd.txt" "${GAME_DIR}/cfg/MOTD.txt" 2>/dev/null || true
     log_info "Wrote cfg/MOTD.txt from per-server motd.txt"
 else
     echo "${DEFAULT_MOTD}" > "${GAME_DIR}/motd.txt"
@@ -407,17 +407,17 @@ if [[ -d "${SERVER_DATA}/maps" ]] && command -v bzip2 &>/dev/null; then
     shopt -u nullglob
 
     if [[ ${#BSP_FILES[@]} -gt 0 ]]; then
-        mkdir -p "${FASTDL_MAPS_DIR}"
+        mkdir -p "${FASTDL_MAPS_DIR}" 2>/dev/null || true
         COMPRESSED=0
         for bsp in "${BSP_FILES[@]}"; do
             filename="$(basename "${bsp}")"
             # Copy raw .bsp if missing or source is newer
             if [[ ! -f "${FASTDL_MAPS_DIR}/${filename}" ]] || [[ "${bsp}" -nt "${FASTDL_MAPS_DIR}/${filename}" ]]; then
-                cp "${bsp}" "${FASTDL_MAPS_DIR}/${filename}"
+                cp "${bsp}" "${FASTDL_MAPS_DIR}/${filename}" 2>/dev/null || true
             fi
             # Compress if missing or source is newer
             if [[ ! -f "${FASTDL_MAPS_DIR}/${filename}.bz2" ]] || [[ "${bsp}" -nt "${FASTDL_MAPS_DIR}/${filename}.bz2" ]]; then
-                bzip2 -kf "${FASTDL_MAPS_DIR}/${filename}"
+                bzip2 -kf "${FASTDL_MAPS_DIR}/${filename}" 2>/dev/null || true
                 COMPRESSED=$((COMPRESSED + 1))
             fi
         done

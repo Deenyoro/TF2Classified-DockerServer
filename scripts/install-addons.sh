@@ -8,6 +8,10 @@
 # addon plugins are moved to the disabled/ directory and conflicting
 # stock plugins are restored.
 # ---------------------------------------------------------------------------
+
+# Addon installation is non-critical — failures should warn, never prevent
+# the game server from starting. Disable set -e (inherited from entrypoint).
+set +e
 set -euo pipefail
 
 RED='\033[0;31m'
@@ -374,7 +378,7 @@ install_nativevotes() {
         if [[ -f "${SM_PLUGINS}/nativevotes.smx" ]]; then
             # Always overlay bundled fix (patches zero-player array crash)
             if [[ -f "${BUNDLED_DIR}/nativevotes/nativevotes.smx" ]]; then
-                cp "${BUNDLED_DIR}/nativevotes/nativevotes.smx" "${SM_PLUGINS}/nativevotes.smx"
+                cp "${BUNDLED_DIR}/nativevotes/nativevotes.smx" "${SM_PLUGINS}/nativevotes.smx" 2>/dev/null || true
             fi
             log_info "NativeVotes already installed"
             return 0
@@ -407,7 +411,7 @@ install_nativevotes() {
 
     # Overlay bundled fix (patches zero-player array crash in NativeVotes_Display)
     if [[ -f "${BUNDLED_DIR}/nativevotes/nativevotes.smx" ]]; then
-        cp "${BUNDLED_DIR}/nativevotes/nativevotes.smx" "${SM_PLUGINS}/nativevotes.smx"
+        cp "${BUNDLED_DIR}/nativevotes/nativevotes.smx" "${SM_PLUGINS}/nativevotes.smx" 2>/dev/null || true
         log_info "  Applied bundled NativeVotes fix"
     fi
 
