@@ -635,6 +635,7 @@ SRCDS_CMD="./srcds_linux64 \
     +tv_port \"${TV_PORT}\" \
     -tickrate \"${TICKRATE}\" \
     -console \
+    -textconsole \
     -usercon \
     +servercfgfile server${CFG_SUFFIX}.cfg \
     +exec default${CFG_SUFFIX}.cfg \

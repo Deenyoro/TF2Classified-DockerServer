@@ -372,6 +372,10 @@ install_nativevotes() {
         fi
 
         if [[ -f "${SM_PLUGINS}/nativevotes.smx" ]]; then
+            # Always overlay bundled fix (patches zero-player array crash)
+            if [[ -f "${BUNDLED_DIR}/nativevotes/nativevotes.smx" ]]; then
+                cp "${BUNDLED_DIR}/nativevotes/nativevotes.smx" "${SM_PLUGINS}/nativevotes.smx"
+            fi
             log_info "NativeVotes already installed"
             return 0
         fi
@@ -399,6 +403,12 @@ install_nativevotes() {
             fname="$(basename "$smx")"
             cp "$smx" "${SM_PLUGINS}/${fname}"
         done
+    fi
+
+    # Overlay bundled fix (patches zero-player array crash in NativeVotes_Display)
+    if [[ -f "${BUNDLED_DIR}/nativevotes/nativevotes.smx" ]]; then
+        cp "${BUNDLED_DIR}/nativevotes/nativevotes.smx" "${SM_PLUGINS}/nativevotes.smx"
+        log_info "  Applied bundled NativeVotes fix"
     fi
 
     # If MCE is also enabled, disable NativeVotes' map voting plugins
@@ -735,8 +745,13 @@ patch_tf2tools_gamedata() {
 # Versus Saxton Hale (VSH)
 # =========================================================================
 install_vsh() {
-    # TF2Items is a required dependency for VSH
-    install_tf2items || log_warn "  TF2Items failed — VSH may not work correctly"
+    # TF2Items is incompatible with TF2C 64-bit (native segfault in
+    # GiveNamedItem detour). VSH has been patched to work without it,
+    # using CreateEntityByName + tf2attributes instead.
+    # Disable TF2Items if it was previously installed.
+    rm -f "${SM_DIR}/extensions/tf2items.autoload"
+    rm -f "${SM_DIR}/extensions/tf2items.ext.2.ep2v.so"
+    rm -f "${SM_DIR}/extensions/x64/tf2items.ext.2.ep2v.so"
 
     # TF2 Tools extension needs TF2C gamedata to load
     patch_tf2tools_gamedata
@@ -744,6 +759,16 @@ install_vsh() {
     if [[ -f "${ADDON_MARKERS}/vsh" ]]; then
         ensure_plugin_active "saxtonhale.smx"
         if [[ -f "${SM_PLUGINS}/saxtonhale.smx" ]]; then
+            # Ensure the TF2C-compatible build is deployed (not the stock upstream one)
+            if [[ -f "${BUNDLED_DIR}/vsh/saxtonhale.smx" ]]; then
+                local bundled_md5 deployed_md5
+                bundled_md5="$(md5sum "${BUNDLED_DIR}/vsh/saxtonhale.smx" 2>/dev/null | cut -d' ' -f1)"
+                deployed_md5="$(md5sum "${SM_PLUGINS}/saxtonhale.smx" 2>/dev/null | cut -d' ' -f1)"
+                if [[ "${bundled_md5}" != "${deployed_md5}" ]]; then
+                    cp "${BUNDLED_DIR}/vsh/saxtonhale.smx" "${SM_PLUGINS}/saxtonhale.smx"
+                    log_info "  Updated VSH to bundled TF2C-compatible build"
+                fi
+            fi
             log_info "VSH already installed"
             return 0
         fi
@@ -763,9 +788,13 @@ install_vsh() {
         log_warn "  Extraction warnings for VSH"
     fi
 
-    # Install plugin
-    if [[ -f "${tmp}/addons/sourcemod/plugins/saxtonhale.smx" ]]; then
+    # Install plugin — prefer bundled TF2C-compatible build over upstream
+    if [[ -f "${BUNDLED_DIR}/vsh/saxtonhale.smx" ]]; then
+        cp "${BUNDLED_DIR}/vsh/saxtonhale.smx" "${SM_PLUGINS}/saxtonhale.smx"
+        log_info "  Using bundled TF2C-compatible VSH build"
+    elif [[ -f "${tmp}/addons/sourcemod/plugins/saxtonhale.smx" ]]; then
         cp "${tmp}/addons/sourcemod/plugins/saxtonhale.smx" "${SM_PLUGINS}/saxtonhale.smx"
+        log_warn "  Bundled VSH not found — using upstream build (may not work on TF2C)"
     fi
 
     # Install configs
