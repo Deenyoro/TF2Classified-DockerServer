@@ -15,6 +15,14 @@ if [[ "$(id -u)" == "0" ]]; then
         [[ -d "$d" ]] && chown srcds:srcds "$d"
     done
 
+    # Run SteamCMD updates BEFORE mounting OverlayFS so writes go to the
+    # real shared volume, not the per-server overlay layer.  Secondary
+    # servers (UPDATE_GAME_FILES=false) skip this and go straight to the
+    # overlay mount.
+    if [[ "${UPDATE_GAME_FILES:-true}" == "true" ]]; then
+        runuser -u srcds -- "$0" --update-only "$@"
+    fi
+
     # Per-server game directory isolation via OverlayFS
     if [[ -d /data/overlay ]] && [[ -d /data/classified/tf2classified ]]; then
         mkdir -p /data/overlay/upper /data/overlay/work
@@ -30,6 +38,96 @@ if [[ "$(id -u)" == "0" ]]; then
     fi
 
     exec runuser -u srcds -- "$0" "$@"
+fi
+
+# ---------------------------------------------------------------------------
+# Handle --update-only: run SteamCMD then exit (called from root section above)
+# ---------------------------------------------------------------------------
+if [[ "${1:-}" == "--update-only" ]]; then
+    shift
+    : "${STEAMCMD_DIR:=/opt/steamcmd}"
+    : "${TF2_DIR:=/data/tf}"
+    : "${CLASSIFIED_DIR:=/data/classified}"
+    : "${UPDATE_ON_START:=true}"
+    : "${UPDATE_GAME_FILES:=true}"
+    : "${VALIDATE_INSTALL:=0}"
+    STEAMCMD="${STEAMCMD_DIR}/steamcmd.sh"
+
+    GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'
+    CYAN='\033[0;36m'; NC='\033[0m'
+    _log_info()  { echo -e "${GREEN}[INFO]${NC}  $1"; }
+    _log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
+    _log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+    _log_step()  { echo -e "${CYAN}[STEP]${NC}  $1"; }
+
+    _clear_stale_manifest() {
+        local dir="$1" appid="$2"
+        local manifest="${dir}/steamapps/appmanifest_${appid}.acf"
+        [[ ! -f "$manifest" ]] && return 0
+        local state_flags update_result
+        state_flags=$(grep '"StateFlags"' "$manifest" 2>/dev/null | tr -dc '0-9')
+        update_result=$(grep '"UpdateResult"' "$manifest" 2>/dev/null | tr -dc '0-9')
+        if [[ "${state_flags}" != "4" ]] || [[ -n "${update_result}" && "${update_result}" != "0" ]]; then
+            _log_warn "Stale manifest detected for AppID ${appid} (StateFlags=${state_flags}, UpdateResult=${update_result}) — removing to allow clean update"
+            rm -f "$manifest"
+        fi
+    }
+
+    _install_or_update() {
+        local dir="$1" appid="$2" label="$3"
+        local validate_flag=""
+        [[ "${VALIDATE_INSTALL}" == "1" ]] && validate_flag="validate"
+        local needs_install=false
+        if [[ "${appid}" == "3557020" ]]; then
+            [[ ! -f "${dir}/srcds_linux64" ]] && needs_install=true
+        else
+            [[ ! -d "${dir}/tf" ]] && needs_install=true
+        fi
+        if ${needs_install}; then
+            _log_step "Installing ${label} (AppID ${appid}) — first run, downloading several GB..."
+        elif [[ "${UPDATE_ON_START}" == "true" ]]; then
+            _log_step "Checking for updates: ${label} (AppID ${appid})..."
+        else
+            _log_info "${label} already installed, UPDATE_ON_START=false, skipping"
+            return 0
+        fi
+        _clear_stale_manifest "${dir}" "${appid}"
+        local attempt
+        for attempt in 1 2; do
+            if "${STEAMCMD}" +force_install_dir "${dir}" +login anonymous +app_update "${appid}" ${validate_flag} +quit; then
+                local manifest="${dir}/steamapps/appmanifest_${appid}.acf"
+                if [[ -f "$manifest" ]]; then
+                    local post_state
+                    post_state=$(grep '"StateFlags"' "$manifest" 2>/dev/null | tr -dc '0-9')
+                    if [[ "${post_state}" == "4" ]]; then
+                        _log_info "${label} update successful"
+                        return 0
+                    fi
+                    _log_warn "${label} manifest still dirty after update (StateFlags=${post_state})"
+                else
+                    return 0
+                fi
+            else
+                _log_warn "SteamCMD exited non-zero for ${label} (attempt ${attempt})"
+            fi
+            if [[ "$attempt" == "1" ]]; then
+                _log_warn "Retrying ${label} update with validate after clearing manifest..."
+                rm -f "${dir}/steamapps/appmanifest_${appid}.acf"
+                validate_flag="validate"
+            fi
+        done
+        _log_error "SteamCMD failed for ${label} after 2 attempts — continuing anyway"
+    }
+
+    mkdir -p "${TF2_DIR}" "${CLASSIFIED_DIR}"
+    echo ""
+    echo "============================================"
+    echo "   TF2 Classified Dedicated Server"
+    echo "============================================"
+    echo ""
+    _install_or_update "${TF2_DIR}"        "232250"  "TF2 Dedicated Server (base)"
+    _install_or_update "${CLASSIFIED_DIR}" "3557020" "TF2 Classified"
+    exit 0
 fi
 
 # ---------------------------------------------------------------------------
@@ -141,97 +239,13 @@ CFG_SUFFIX="_${SERVER_PORT}"
 # ---------------------------------------------------------------------------
 # 1. Install / update game files via SteamCMD
 # ---------------------------------------------------------------------------
-
-# Check if an appmanifest is in a stuck/failed state (StateFlags=6, UpdateResult!=0)
-# and remove it so SteamCMD can start fresh instead of immediately failing.
-clear_stale_manifest() {
-    local dir="$1" appid="$2"
-    local manifest="${dir}/steamapps/appmanifest_${appid}.acf"
-
-    if [[ ! -f "$manifest" ]]; then
-        return 0
-    fi
-
-    local state_flags update_result
-    state_flags=$(grep '"StateFlags"' "$manifest" 2>/dev/null | tr -dc '0-9')
-    update_result=$(grep '"UpdateResult"' "$manifest" 2>/dev/null | tr -dc '0-9')
-
-    # StateFlags=4 means fully installed and clean. Anything else (especially 6)
-    # means a previous update was interrupted or failed.
-    if [[ "${state_flags}" != "4" ]] || [[ -n "${update_result}" && "${update_result}" != "0" ]]; then
-        log_warn "Stale manifest detected for AppID ${appid} (StateFlags=${state_flags}, UpdateResult=${update_result}) — removing to allow clean update"
-        rm -f "$manifest"
-    fi
-}
-
-install_or_update() {
-    local dir="$1" appid="$2" label="$3"
-    local validate_flag=""
-    [[ "${VALIDATE_INSTALL}" == "1" ]] && validate_flag="validate"
-
-    local needs_install=false
-    if [[ "${appid}" == "3557020" ]]; then
-        [[ ! -f "${dir}/srcds_linux64" ]] && needs_install=true
-    else
-        [[ ! -d "${dir}/tf" ]] && needs_install=true
-    fi
-
-    if ${needs_install}; then
-        log_step "Installing ${label} (AppID ${appid}) — first run, downloading several GB..."
-    elif [[ "${UPDATE_ON_START}" == "true" ]]; then
-        log_step "Checking for updates: ${label} (AppID ${appid})..."
-    else
-        log_info "${label} already installed, UPDATE_ON_START=false, skipping"
-        return 0
-    fi
-
-    # Clear any stuck manifest from a previous failed update
-    clear_stale_manifest "${dir}" "${appid}"
-
-    local attempt
-    for attempt in 1 2; do
-        if "${STEAMCMD}" \
-            +force_install_dir "${dir}" \
-            +login anonymous \
-            +app_update "${appid}" ${validate_flag} \
-            +quit; then
-
-            # Verify the manifest is actually clean after SteamCMD reports success
-            local manifest="${dir}/steamapps/appmanifest_${appid}.acf"
-            if [[ -f "$manifest" ]]; then
-                local post_state
-                post_state=$(grep '"StateFlags"' "$manifest" 2>/dev/null | tr -dc '0-9')
-                if [[ "${post_state}" == "4" ]]; then
-                    log_info "${label} update successful"
-                    return 0
-                fi
-                # SteamCMD exited 0 but manifest is still dirty
-                log_warn "${label} manifest still dirty after update (StateFlags=${post_state})"
-            else
-                # No manifest at all — first install, trust the exit code
-                return 0
-            fi
-        else
-            log_warn "SteamCMD exited non-zero for ${label} (attempt ${attempt})"
-        fi
-
-        # If first attempt failed, nuke the manifest and retry with validate
-        if [[ "$attempt" == "1" ]]; then
-            log_warn "Retrying ${label} update with validate after clearing manifest..."
-            rm -f "${dir}/steamapps/appmanifest_${appid}.acf"
-            validate_flag="validate"
-        fi
-    done
-
-    log_error "SteamCMD failed for ${label} after 2 attempts — continuing anyway"
-}
+# When UPDATE_GAME_FILES=true the update already ran in the root section
+# (before OverlayFS was mounted) so writes go to the real shared volume.
+# Here we only need to guard the UPDATE_GAME_FILES=false path.
 
 mkdir -p "${TF2_DIR}" "${CLASSIFIED_DIR}"
 
-if [[ "${UPDATE_GAME_FILES,,}" == "true" ]]; then
-    install_or_update "${TF2_DIR}"        "232250"  "TF2 Dedicated Server (base)"
-    install_or_update "${CLASSIFIED_DIR}" "3557020" "TF2 Classified"
-else
+if [[ "${UPDATE_GAME_FILES,,}" != "true" ]]; then
     if [[ ! -d "${TF2_DIR}/tf" ]] || [[ ! -f "${CLASSIFIED_DIR}/srcds_linux64" ]]; then
         log_error "Game files not found and UPDATE_GAME_FILES=false — start the primary server first"
         exit 1
