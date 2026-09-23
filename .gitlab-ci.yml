@@ -1,0 +1,23 @@
+# Container images for TF2Classified-DockerServer, built on GitLab and mirrored
+# to GHCR.
+#
+# Two images, matching the two compose files: the game server (docker-compose.yml,
+# context ".") and the WireGuard sidecar (docker-compose.wireguard.yml,
+# context "./wireguard"). Both were built locally before this.
+# Pipelines run on a v* tag, or manually from the UI/API (set
+# RELEASE_VERSION=v1.2.3 to stamp a version without tagging, DOCKER_PUSH=false
+# to build without publishing).
+
+include:
+  - project: dean/ci-templates
+    ref: main
+    file: /docker.yml
+
+build:
+  extends: .docker-build
+  parallel:
+    matrix:
+      - IMAGE: tf2classified
+        CONTEXT: .
+      - IMAGE: tf2classified-wireguard
+        CONTEXT: ./wireguard
