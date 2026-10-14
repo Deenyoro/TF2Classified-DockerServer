@@ -76,7 +76,7 @@ services:
     container_name: tf2c-fastdl
     restart: unless-stopped
     ports:
-      - "${FASTDL_PORT:-8080}:80"
+      - "${FASTDL_PORT:-8080}:8080"
     volumes:
       - ./data/fastdl:/usr/share/nginx/html:ro
       - ./nginx/fastdl.conf:/etc/nginx/conf.d/default.conf:ro
@@ -101,7 +101,7 @@ services:
         max-size: "5m"
         max-file: "2"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
       retries: 3
