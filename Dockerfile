@@ -35,6 +35,7 @@ RUN groupadd -g ${PGID} srcds \
  && useradd -u ${PUID} -g srcds -m -d /home/srcds -s /bin/bash srcds
 
 # Install SteamCMD from Valve directly
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN mkdir -p /opt/steamcmd \
  && curl -fsSL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" \
     | tar -xzC /opt/steamcmd \

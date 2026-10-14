@@ -151,7 +151,8 @@ install_tf2c_gamedata() {
     # Install to custom/ directory (survives SM auto-updater)
     local custom_dir="${SM_GAMEDATA}/custom"
     mkdir -p "${custom_dir}"
-    local custom_name="tf2c.$(basename "${gamedata_file}")"
+    local custom_name
+    custom_name="tf2c.$(basename "${gamedata_file}")"
     # Wrap patch content in a proper Games{} block for standalone loading
     if ! grep -q '"Games"' "${patch_file}" 2>/dev/null; then
         {

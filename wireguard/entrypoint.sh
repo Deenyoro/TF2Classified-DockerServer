@@ -113,7 +113,7 @@ cleanup() {
     wg-quick down wg0
     exit 0
 }
-trap cleanup SIGTERM SIGINT
+trap cleanup TERM INT
 
 # Sleep forever, waiting for signal
 while true; do sleep 60 & wait $!; done
