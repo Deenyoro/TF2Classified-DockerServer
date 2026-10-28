@@ -161,7 +161,14 @@ echo ""
 
 : "${SERVER_NAME:=TF2 Classified Server}"
 : "${SERVER_PASSWORD:=}"
-: "${RCON_PASSWORD:=changeme}"
+: "${RCON_PASSWORD:=}"
+# srcds runs with -usercon on the host network, so RCON listens on every
+# interface. The placeholder from .env.example is public knowledge: refuse it
+# and leave RCON disabled (an empty rcon_password turns RCON off).
+if [[ "${RCON_PASSWORD}" == "changeme" ]]; then
+    log_warn "RCON_PASSWORD is still the 'changeme' placeholder: RCON disabled. Set a real password in .env to enable it."
+    RCON_PASSWORD=""
+fi
 : "${SERVER_PORT:=27015}"
 : "${MAX_PLAYERS:=24}"
 : "${START_MAP:=ctf_2fort}"

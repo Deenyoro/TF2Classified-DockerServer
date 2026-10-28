@@ -88,7 +88,7 @@ Everything is in `.env`. The important ones:
 |----------|---------|-------------|
 | `SERVER_NAME` | `My TF2 Classified Server` | Browser listing name |
 | `SERVER_PASSWORD` | *(empty)* | Empty = public |
-| `RCON_PASSWORD` | `changeme` | Remote admin password. **Change this.** |
+| `RCON_PASSWORD` | *(empty)* | Remote admin password. Empty or the `changeme` placeholder = RCON disabled. `setup.sh` generates one. |
 | `START_MAP` | `ctf_2fort` | Map on boot |
 | `MAX_PLAYERS` | `24` | Up to 64 |
 | `SERVER_PORT` | `27015` | Game port (UDP) |
